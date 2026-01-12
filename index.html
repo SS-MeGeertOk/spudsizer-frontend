@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpudSizer - Fast Field Sizing</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Cloudflare Turnstile (Bot Protection) -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #F4F6F8;
+            color: #0B1C2D;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            padding: 20px 40px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .logo-text-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0B1C2D;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        .tagline {
+            font-size: 13px;
+            color: #6B7280;
+            font-weight: 400;
+            line-height: 1.2;
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            max-width: 600px;
+            width: 100%;
+            padding: 48px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0B1C2D;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #6B7280;
+            margin-bottom: 32px;
+            font-weight: 400;
+        }
+
+        /* Steps */
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Form Elements */
+        input[type="email"],
+        input[type="number"] {
+            width: 100%;
+            padding: 14px 16px;
+            margin: 10px 0;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #1F4FD8;
+            box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.1);
+        }
+
+        input::placeholder {
+            color: #9CA3AF;
+        }
+
+        /* Buttons */
+        button {
+            width: 100%;
+            padding: 14px 20px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button.primary {
+            background: #1F4FD8;
+            color: white;
+        }
+
+        button.primary:hover:not(:disabled) {
+            background: #1a42b8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(31, 79, 216, 0.25);
+        }
+
+        button.secondary {
+            background: white;
+            color: #1F4FD8;
+            border: 1.5px solid #1F4FD8;
+        }
+
+        button.secondary:hover {
+            background: #F0F4FF;
+        }
+
+        button:disabled {
+            background: #E5E7EB;
+            color: #9CA3AF;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* File Upload */
+        .file-upload {
+            border: 2px dashed #1F4FD8;
+            background: #F8FAFF;
+            padding: 48px 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .file-upload:hover {
+            background: #F0F4FF;
+            border-color: #1a42b8;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            background: #1F4FD8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-icon::before {
+            content: "↑";
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .file-upload-text {
+            font-size: 15px;
+            color: #0B1C2D;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .file-upload-hint {
+            font-size: 13px;
+            color: #6B7280;
+        }
+
+        #file-name {
+            color: #1F4FD8;
+            margin-top: 12px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        /* Status Messages */
+        .status {
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status.info {
+            background: #F0F4FF;
+            color: #1F4FD8;
+            border: 1px solid #D4E1FF;
+        }
+
+        .status.success {
+            background: #ECFDF5;
+            color: #059669;
+            border: 1px solid #A7F3D0;
+        }
+
+        .status.error {
+            background: #FEF2F2;
+            color: #DC2626;
+            border: 1px solid #FECACA;
+        }
+
+        /* Loader */
+        .loader {
+            border: 4px solid #F4F6F8;
+            border-top: 4px solid #1F4FD8;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 0.8s linear infinite;
+            margin: 24px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Download Buttons */
+        .download-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .download-buttons button {
+            flex: 1;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: #F8FAFF;
+            border: 1px solid #D4E1FF;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .info-box strong {
+            color: #0B1C2D;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            color: #6B7280;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Indicators */
+        .ball-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #F0F4FF;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #1F4FD8;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .ball-indicator::before {
+            content: "";
+            width: 12px;
+            height: 12px;
+            background: #1F4FD8;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .checkerboard-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #F0F4FF;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #1F4FD8;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .checkerboard-indicator::before {
+            content: "▦";
+            font-size: 16px;
+            color: #1F4FD8;
+        }
+
+        /* Cloudflare Turnstile Container */
+        .turnstile-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        /* Footer */
+        footer {
+            background: #0B1C2D;
+            color: #9CA3AF;
+            padding: 24px 40px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            header {
+                padding: 16px 20px;
+            }
+
+            .container {
+                padding: 32px 24px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">
+                <!-- Replace with your actual logo -->
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="20" fill="#1F4FD8"/>
+                    <ellipse cx="35" cy="50" rx="25" ry="20" fill="none" stroke="#0B1C2D" stroke-width="3" opacity="0.3"/>
+                    <ellipse cx="65" cy="50" rx="25" ry="20" fill="none" stroke="#0B1C2D" stroke-width="3" opacity="0.3"/>
+                </svg>
+            </div>
+            <div class="logo-text-container">
+                <div class="logo-text">SPUDSIZE</div>
+                <div class="tagline">Fast field sizing</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- STEP 1: Email Entry -->
+            <div id="step-email" class="step active">
+                <h1>Welcome to SpudSizer</h1>
+                <p class="subtitle">Enter your email to begin</p>
+
+                <input
+                    type="email"
+                    id="email-input"
+                    placeholder="your@email.com"
+                    required
+                >
+
+                <!-- Cloudflare Turnstile (Bot Protection) -->
+                <div class="turnstile-container">
+                    <div class="cf-turnstile"
+                         data-sitekey="1x00000000000000000000AA"
+                         data-callback="onTurnstileSuccess">
+                    </div>
+                </div>
+
+                <button class="primary" id="email-continue-btn" onclick="checkEmail()" disabled>
+                    Continue
+                </button>
+
+                <div id="email-status"></div>
+            </div>
+
+            <!-- STEP 2: Calibration -->
+            <div id="step-calibrate" class="step">
+                <h1>Camera Calibration</h1>
+                <p class="subtitle">Configure camera intrinsic parameters</p>
+
+                <div class="info-box">
+                    <strong>One-time setup</strong>
+                    <p>These settings will be saved. You only need to do this once per device.</p>
+                </div>
+
+                <span class="checkerboard-indicator">Provided checkerboard required</span>
+
+                <input
+                    type="number"
+                    id="fx"
+                    placeholder="fx - Focal length X (pixels)"
+                    step="0.01"
+                >
+
+                <input
+                    type="number"
+                    id="fy"
+                    placeholder="fy - Focal length Y (pixels)"
+                    step="0.01"
+                >
+
+                <input
+                    type="number"
+                    id="cx"
+                    placeholder="cx - Principal point X (pixels)"
+                    step="0.01"
+                >
+
+                <input
+                    type="number"
+                    id="cy"
+                    placeholder="cy - Principal point Y (pixels)"
+                    step="0.01"
+                >
+
+                <button class="primary" onclick="saveCalibration()">Save Calibration</button>
+
+                <div id="calibrate-status"></div>
+            </div>
+
+            <!-- STEP 3: Upload Photo -->
+            <div id="step-upload" class="step">
+                <h1>Upload Photo</h1>
+                <p class="subtitle" id="user-email-display"></p>
+
+                <span class="ball-indicator">Include reference ball in photo</span>
+
+                <div class="file-upload" onclick="document.getElementById('photo-input').click()">
+                    <input
+                        type="file"
+                        id="photo-input"
+                        accept="image/*"
+                        onchange="handleFileSelect(this)"
+                    >
+                    <div class="upload-icon"></div>
+                    <div class="file-upload-text">Click to select photo</div>
+                    <div class="file-upload-hint">JPG, PNG or HEIC • Max 10MB</div>
+                    <p id="file-name"></p>
+                </div>
+
+                <button class="primary" id="upload-button" onclick="uploadPhoto()" disabled>
+                    Upload and Process
+                </button>
+
+                <button class="secondary" onclick="resetToEmail()">
+                    Use Different Email
+                </button>
+
+                <div id="upload-status"></div>
+            </div>
+
+            <!-- STEP 4: Processing -->
+            <div id="step-processing" class="step">
+                <h1>Processing</h1>
+                <p class="subtitle">Analyzing your photo</p>
+
+                <div class="loader"></div>
+
+                <div class="status info">
+                    <strong>Please wait</strong><br>
+                    Processing typically takes a few seconds
+                </div>
+            </div>
+
+            <!-- STEP 5: Results -->
+            <div id="step-results" class="step">
+                <h1>Analysis Complete</h1>
+                <p class="subtitle">Your results are ready</p>
+
+                <div class="status success">
+                    ✓ Processing complete
+                </div>
+
+                <div class="download-buttons">
+                    <button class="primary" onclick="downloadFile('pdf')">
+                        Download PDF
+                    </button>
+                    <button class="primary" onclick="downloadFile('csv')">
+                        Download CSV
+                    </button>
+                </div>
+
+                <button class="secondary" onclick="resetToUpload()">
+                    Upload New Photo
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2024 SpudSizer • Digital sizing for seed potatoes</p>
+    </footer>
+
+    <script>
+        // ═══════════════════════════════════════════════════════
+        // CONFIGURATION
+        // ═══════════════════════════════════════════════════════
+
+        // IMPORTANT: Update this to your actual API URL
+        // For local testing: 'http://localhost:8000'
+        // For production: 'https://api.spudsizer.nl'
+        const API_URL = 'http://localhost:8000';  // CHANGE THIS
+
+        // Cloudflare Turnstile Site Key
+        // Get this from: https://dash.cloudflare.com → Turnstile
+        // Currently using test key - MUST CHANGE for production!
+        const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';  // TEST KEY - CHANGE THIS
+
+        // ═══════════════════════════════════════════════════════
+        // GLOBAL STATE
+        // ═══════════════════════════════════════════════════════
+
+        let userEmail = '';
+        let currentJobId = null;
+        let selectedFile = null;
+        let turnstileToken = null;
+
+        // ═══════════════════════════════════════════════════════
+        // CLOUDFLARE TURNSTILE CALLBACK
+        // ═══════════════════════════════════════════════════════
+
+        function onTurnstileSuccess(token) {
+            console.log('Turnstile verified');
+            turnstileToken = token;
+            document.getElementById('email-continue-btn').disabled = false;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // STEP 1: Check Email
+        // ═══════════════════════════════════════════════════════
+
+        async function checkEmail() {
+            const email = document.getElementById('email-input').value;
+
+            if (!email || !email.includes('@')) {
+                showStatus('email-status', 'error', 'Enter a valid email address');
+                return;
+            }
+
+            if (!turnstileToken) {
+                showStatus('email-status', 'error', 'Please complete the security check');
+                return;
+            }
+
+            userEmail = email;
+            showStatus('email-status', 'info', 'Checking...');
+
+            try {
+                const response = await fetch(`${API_URL}/api/check-calibration/${encodeURIComponent(email)}`);
+                const data = await response.json();
+
+                if (data.has_calibration) {
+                    showStatus('email-status', 'success', 'Welcome back');
+                    setTimeout(() => {
+                        showStep('step-upload');
+                        document.getElementById('user-email-display').textContent =
+                            `Logged in as: ${email}`;
+                    }, 800);
+                } else {
+                    showStatus('email-status', 'info', 'New user - calibration required');
+                    setTimeout(() => {
+                        showStep('step-calibrate');
+                    }, 800);
+                }
+
+            } catch (error) {
+                showStatus('email-status', 'error', 'Connection error. Is backend running?');
+                console.error('Error:', error);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // STEP 2: Save Calibration
+        // ═══════════════════════════════════════════════════════
+
+        async function saveCalibration() {
+            const fx = document.getElementById('fx').value;
+            const fy = document.getElementById('fy').value;
+            const cx = document.getElementById('cx').value;
+            const cy = document.getElementById('cy').value;
+
+            if (!fx || !fy || !cx || !cy) {
+                showStatus('calibrate-status', 'error', 'Fill in all camera parameters');
+                return;
+            }
+
+            showStatus('calibrate-status', 'info', 'Saving...');
+
+            const calibrationData = {
+                fx: parseFloat(fx),
+                fy: parseFloat(fy),
+                cx: parseFloat(cx),
+                cy: parseFloat(cy)
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/calibrate`, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        email: userEmail,
+                        calibration_json: JSON.stringify(calibrationData)
+                    })
+                });
+
+                if (response.ok) {
+                    showStatus('calibrate-status', 'success', 'Calibration saved');
+
+                    setTimeout(() => {
+                        showStep('step-upload');
+                        document.getElementById('user-email-display').textContent =
+                            `Logged in as: ${userEmail}`;
+                    }, 1000);
+                } else {
+                    const error = await response.json();
+                    showStatus('calibrate-status', 'error', error.detail || 'Save failed');
+                }
+
+            } catch (error) {
+                showStatus('calibrate-status', 'error', 'Connection error');
+                console.error('Error:', error);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // STEP 3: Handle File Selection
+        // ═══════════════════════════════════════════════════════
+
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                selectedFile = input.files[0];
+
+                // Check file size (10MB limit)
+                const maxSize = 10 * 1024 * 1024;  // 10MB in bytes
+                if (selectedFile.size > maxSize) {
+                    showStatus('upload-status', 'error', 'File too large. Maximum size is 10MB');
+                    selectedFile = null;
+                    document.getElementById('file-name').textContent = '';
+                    document.getElementById('upload-button').disabled = true;
+                    return;
+                }
+
+                document.getElementById('file-name').textContent = selectedFile.name;
+                document.getElementById('upload-button').disabled = false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // STEP 4: Upload Photo
+        // ═══════════════════════════════════════════════════════
+
+        async function uploadPhoto() {
+            if (!selectedFile) return;
+
+            showStep('step-processing');
+
+            const formData = new FormData();
+            formData.append('email', userEmail);
+            formData.append('photo', selectedFile);
+
+            try {
+                const response = await fetch(`${API_URL}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'completed') {
+                    currentJobId = data.job_id;
+                    showStep('step-results');
+                } else if (response.status === 429) {
+                    // Rate limit exceeded
+                    alert('Daily upload limit reached (100 uploads). Please try again tomorrow.');
+                    showStep('step-upload');
+                } else {
+                    alert('Error: ' + (data.detail || 'Unknown error'));
+                    showStep('step-upload');
+                }
+
+            } catch (error) {
+                alert('Connection error: ' + error.message);
+                showStep('step-upload');
+                console.error('Error:', error);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // STEP 5: Download Files
+        // ═══════════════════════════════════════════════════════
+
+        function downloadFile(type) {
+            const url = `${API_URL}/api/download/${currentJobId}/${type}`;
+            window.open(url, '_blank');
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // HELPER FUNCTIONS
+        // ═══════════════════════════════════════════════════════
+
+        function showStep(stepId) {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(stepId).classList.add('active');
+        }
+
+        function showStatus(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${type}`;
+            element.textContent = message;
+            element.style.display = 'block';
+        }
+
+        function resetToEmail() {
+            userEmail = '';
+            selectedFile = null;
+            turnstileToken = null;
+            document.getElementById('email-input').value = '';
+            document.getElementById('file-name').textContent = '';
+            document.getElementById('email-continue-btn').disabled = true;
+
+            // Reset Turnstile
+            if (window.turnstile) {
+                window.turnstile.reset();
+            }
+
+            showStep('step-email');
+        }
+
+        function resetToUpload() {
+            selectedFile = null;
+            document.getElementById('file-name').textContent = '';
+            document.getElementById('upload-button').disabled = true;
+            showStep('step-upload');
+        }
+    </script>
+</body>
+</html>
