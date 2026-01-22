@@ -59,7 +59,25 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         }
-        
+
+        .hero-logo {
+            margin-bottom: 30px;
+        }
+
+        .hero-logo img {
+            width: 240px;
+            height: 240px;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+        }
+
+        /* Responsive - smaller on mobile */
+        @media (max-width: 768px) {
+            .hero-logo img {
+                width: 80px;
+                height: 80px;
+            }
+        }
+
         /* Features */
         .features {
             padding: 80px 20px;
@@ -162,6 +180,9 @@
 <body>
     <!-- Hero Section -->
     <section class="hero">
+        <div class="hero-logo">
+            <img src="/assets/logo.webp" alt="SpudSizer Logo" width="120" height="120">
+        </div>
         <h1>SPUDSIZE</h1>
         <p class="tagline">Fast Field Sizing for Seed Potatoes</p>
         <a href="/app/" class="cta">Start Measuring →</a>
