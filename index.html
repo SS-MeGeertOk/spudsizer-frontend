@@ -113,8 +113,17 @@
         }
         
         .feature-icon {
-            font-size: 64px;
             margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80px; /* Consistent height for all icons */
+        }
+
+        .feature-icon img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
         }
         
         .feature h3 {
@@ -202,7 +211,12 @@
         <h2>Why SpudSizer?</h2>
         <div class="feature-grid">
             <div class="feature">
-                <div class="feature-icon">⚡</div>
+                <div class="feature-icon">
+                     <picture>
+                        <source srcset="/assets/icon-fast.webp" type="image/webp">
+                        <img src="/assets/icon-fast.png" alt="Fast & Accurate" width="64" height="64">
+                    </picture>
+                </div>
                 <h3>Fast & Accurate</h3>
                 <p>Measure potato sizes in seconds using your phone camera and our reference ball system</p>
             </div>
