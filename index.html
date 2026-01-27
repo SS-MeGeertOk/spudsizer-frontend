@@ -113,17 +113,18 @@
         }
         
         .feature-icon {
-            font-size: 330px
             margin-bottom: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         .feature-icon img {
-            width: 330px;
-            height: 330px;
-            object-fit: contain;
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth animations */
         }
         
         .feature h3 {
@@ -178,7 +179,7 @@
             padding: 40px 20px;
             text-align: center;
         }
-        
+
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 32px;
@@ -191,6 +192,11 @@
             .features h2,
             .contact h2 {
                 font-size: 28px;
+            }
+
+            .feature-icon img {
+            max-width: 200px;
+            border-radius: 12px; /* Slightly less rounded on small screens */
             }
         }
     </style>
@@ -212,23 +218,24 @@
         <div class="feature-grid">
             <div class="feature">
                 <div class="feature-icon">
-                     <picture>
-                        <source srcset="/assets/icon-fast.webp" type="image/webp">
-                        <img src="/assets/icon-fast.png" alt="Fast & Accurate" width="64" height="64">
-                    </picture>
+                        <img src="/assets/icon-fast.webp" alt="Fast & Accurate">
                 </div>
                 <h3>Fast & Accurate</h3>
                 <p>Measure potato sizes in seconds using your phone camera and our reference ball system</p>
             </div>
             
             <div class="feature">
-                <div class="feature-icon">📱</div>
+                <div class="feature-icon">
+                    <img src="/assets/icon-fast.webp" alt="Fast & Accurate">
+                </div>
                 <h3>Field Ready</h3>
                 <p>Works directly in the field on your mobile device. No special equipment needed</p>
             </div>
             
             <div class="feature">
-                <div class="feature-icon">📊</div>
+                <div class="feature-icon">
+                    <img src="/assets/icon-fast.webp" alt="Fast & Accurate">
+                </div>
                 <h3>Detailed Reports</h3>
                 <p>Receive PDF reports and CSV data for further analysis and record keeping</p>
             </div>
