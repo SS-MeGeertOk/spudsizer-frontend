@@ -391,6 +391,209 @@
                 padding-right: max(16px, env(safe-area-inset-right));
             }
         }
+
+        /* =============================================
+           CAMERA VIEWFINDER OVERLAY (NEW)
+           ============================================= */
+
+        /* Full-screen camera modal */
+        #camera-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        #camera-modal.active {
+            display: flex;
+        }
+
+        /* Video fills the screen */
+        #camera-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ---- Oval vignette overlay ---- */
+        /*
+         * The oval is ~72% wide × 82% tall of the viewport.
+         * The vignette is drawn with an SVG that punches a clear ellipse
+         * through a semi-transparent dark layer. The actual captured image
+         * is the raw full-frame video frame — the oval is purely cosmetic.
+         */
+        #oval-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* ---- Level / tilt indicator ---- */
+        /*
+         * Two crosshairs: a fixed white one in the centre, and a moving
+         * yellow one driven by the DeviceOrientation API.
+         * When they line up the phone is perfectly level (0° tilt, nadir view).
+         */
+        #level-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* Fixed crosshair — always dead centre */
+        .crosshair-fixed {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 36px;
+            height: 36px;
+        }
+        .crosshair-fixed::before,
+        .crosshair-fixed::after {
+            content: '';
+            position: absolute;
+            background: rgba(255,255,255,0.85);
+            border-radius: 2px;
+        }
+        .crosshair-fixed::before { /* horizontal bar */
+            width: 36px; height: 2px;
+            top: 50%; left: 0;
+            transform: translateY(-50%);
+        }
+        .crosshair-fixed::after { /* vertical bar */
+            width: 2px; height: 36px;
+            left: 50%; top: 0;
+            transform: translateX(-50%);
+        }
+
+        /* Moving crosshair — driven by tilt */
+        #crosshair-moving {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            /* position updated via JS */
+        }
+        #crosshair-moving::before,
+        #crosshair-moving::after {
+            content: '';
+            position: absolute;
+            border-radius: 2px;
+            transition: background 0.15s;
+        }
+        #crosshair-moving::before {
+            width: 36px; height: 2px;
+            top: 50%; left: 0;
+            transform: translateY(-50%);
+        }
+        #crosshair-moving::after {
+            width: 2px; height: 36px;
+            left: 50%; top: 0;
+            transform: translateX(-50%);
+        }
+        /* Yellow when not aligned, green when level */
+        #crosshair-moving.unlevel::before,
+        #crosshair-moving.unlevel::after { background: #FACC15; }
+        #crosshair-moving.level::before,
+        #crosshair-moving.level::after  { background: #22C55E; }
+
+        /* Level badge */
+        #level-badge {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 14px;
+            border-radius: 20px;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+            pointer-events: none;
+        }
+        #level-badge.level-ok {
+            background: rgba(34,197,94,0.75);
+        }
+
+        /* ---- Camera controls bar ---- */
+        #camera-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 20px max(20px, env(safe-area-inset-bottom));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+        }
+
+        #btn-close-camera {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.6);
+            color: white;
+            font-size: 22px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            margin: 0;
+            padding: 0;
+            min-height: unset;
+        }
+
+        #btn-capture {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid rgba(255,255,255,0.5);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+            cursor: pointer;
+            margin: 0;
+            padding: 0;
+            min-height: unset;
+            transition: transform 0.1s;
+        }
+        #btn-capture:active { transform: scale(0.92); }
+
+        #btn-gallery {
+            width: 48px; height: 48px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.6);
+            color: white;
+            font-size: 22px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            margin: 0;
+            padding: 0;
+            min-height: unset;
+        }
+
+        /* hidden canvas used to grab the raw frame */
+        #capture-canvas { display: none; }
+
+        /* ---- Oval guide label ---- */
+        #oval-label {
+            position: absolute;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.8);
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+            pointer-events: none;
+            white-space: nowrap;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+        }
     </style>
 </head>
 <body>
@@ -494,20 +697,31 @@
                 <p class="subtitle" id="user-email-display"></p>
                 
                 <span class="indicator ball">Include blue reference ball</span>
+
+                <div class="info-box">
+                    <strong>📸 How to take a good photo</strong>
+                    <p>Tap <strong>Open Camera</strong> below. Make sure all potatoes fit inside the oval guide on screen. Align the two crosshairs so the phone is perfectly level before shooting.</p>
+                </div>
                 
+                <!-- Primary: open our custom camera -->
+                <button class="primary" onclick="openCamera()">
+                    📷 Open Camera
+                </button>
+
+                <!-- Secondary: pick from gallery / use native camera -->
                 <div class="file-upload" onclick="document.getElementById('photo-input').click()">
                     <input 
                         type="file" 
                         id="photo-input" 
                         accept="image/*"
-                        capture="environment"
                         onchange="handleFileSelect(this)"
                     >
                     <div class="camera-icon"></div>
-                    <div class="file-upload-text">Tap to take photo</div>
-                    <div class="file-upload-hint">Camera opens automatically</div>
-                    <p id="file-name"></p>
+                    <div class="file-upload-text">Or choose from gallery</div>
+                    <div class="file-upload-hint">Use a photo already on your device</div>
                 </div>
+                
+                <p id="file-name"></p>
                 
                 <button class="primary" id="upload-button" onclick="uploadPhoto()" disabled>
                     Process Photo
@@ -562,44 +776,82 @@
         <p>© 2024 SpudSizer</p>
     </footer>
 
+    <!-- =============================================
+         CAMERA MODAL (fullscreen viewfinder)
+         ============================================= -->
+    <div id="camera-modal">
+
+        <!-- Live video feed -->
+        <video id="camera-video" autoplay playsinline muted></video>
+
+        <!-- Hidden canvas for raw frame capture (no overlay) -->
+        <canvas id="capture-canvas"></canvas>
+
+        <!-- Oval vignette SVG — purely visual, does NOT affect the captured image -->
+        <svg id="oval-overlay" xmlns="http://www.w3.org/2000/svg">
+            <!--
+              The SVG uses an <clipPath> + inverted fill trick:
+              - A full-screen rect is drawn in semi-transparent dark grey.
+              - An ellipse is cut out via clip-path so the centre stays clear.
+              We rebuild it on resize so the oval always fits the viewport.
+            -->
+        </svg>
+
+        <!-- Level indicator -->
+        <div id="level-container">
+            <div class="crosshair-fixed"></div>
+            <div id="crosshair-moving" class="unlevel"></div>
+            <div id="level-badge">Hold level — align crosshairs</div>
+        </div>
+
+        <!-- Oval hint label -->
+        <div id="oval-label">Keep all potatoes inside the oval</div>
+
+        <!-- Controls -->
+        <div id="camera-controls">
+            <button id="btn-close-camera" onclick="closeCamera()" title="Cancel">✕</button>
+            <button id="btn-capture" onclick="capturePhoto()" title="Take photo"></button>
+            <button id="btn-gallery" onclick="document.getElementById('photo-input').click()" title="Choose from gallery">🖼</button>
+        </div>
+    </div>
+
     <script>
-        // Configuration
-        const API_URL = 'https://api.spudsizer.nl'; // UPDATE THIS
-        const TURNSTILE_SITE_KEY = '0x4AAAAAACNQs8l84fgZFlp1'; // updated
-        
-        // State
+        // ── Configuration ────────────────────────────────────────────────────
+        const API_URL = 'https://api.spudsizer.nl';
+        const TURNSTILE_SITE_KEY = '0x4AAAAAACNQs8l84fgZFlp1';
+
+        // ── State ─────────────────────────────────────────────────────────────
         let userEmail = '';
         let currentJobId = null;
         let selectedFile = null;
         let turnstileToken = null;
-        
-        // Turnstile callback
+
+        // Camera state
+        let cameraStream = null;
+        let orientationHandler = null;
+
+        // ── Turnstile ─────────────────────────────────────────────────────────
         function onTurnstileSuccess(token) {
             turnstileToken = token;
             document.getElementById('email-continue-btn').disabled = false;
         }
-        
-        // Check email
+
+        // ── Email step ────────────────────────────────────────────────────────
         async function checkEmail() {
             const email = document.getElementById('email-input').value;
-            
             if (!email || !email.includes('@')) {
                 showStatus('email-status', 'error', 'Enter a valid email address');
                 return;
             }
-            
             if (!turnstileToken) {
                 showStatus('email-status', 'error', 'Complete security check');
                 return;
             }
-            
             userEmail = email;
             showStatus('email-status', 'info', 'Checking...');
-            
             try {
                 const response = await fetch(`${API_URL}/api/check-calibration/${encodeURIComponent(email)}`);
                 const data = await response.json();
-                
                 if (data.has_calibration) {
                     showStatus('email-status', 'success', 'Welcome back');
                     setTimeout(() => {
@@ -614,35 +866,29 @@
                 showStatus('email-status', 'error', 'Connection error');
             }
         }
-        
-        // Save calibration
+
+        // ── Calibration step ──────────────────────────────────────────────────
         async function saveCalibration() {
             const fx = document.getElementById('fx').value;
             const fy = document.getElementById('fy').value;
             const cx = document.getElementById('cx').value;
             const cy = document.getElementById('cy').value;
-            
             if (!fx || !fy || !cx || !cy) {
                 showStatus('calibrate-status', 'error', 'Fill in all fields');
                 return;
             }
-            
             showStatus('calibrate-status', 'info', 'Saving...');
-            
             try {
                 const response = await fetch(`${API_URL}/api/calibrate`, {
                     method: 'POST',
                     body: new URLSearchParams({
                         email: userEmail,
                         calibration_json: JSON.stringify({
-                            fx: parseFloat(fx),
-                            fy: parseFloat(fy),
-                            cx: parseFloat(cx),
-                            cy: parseFloat(cy)
+                            fx: parseFloat(fx), fy: parseFloat(fy),
+                            cx: parseFloat(cx), cy: parseFloat(cy)
                         })
                     })
                 });
-                
                 if (response.ok) {
                     showStatus('calibrate-status', 'success', 'Saved');
                     setTimeout(() => {
@@ -657,12 +903,11 @@
                 showStatus('calibrate-status', 'error', 'Connection error');
             }
         }
-        
-        // Handle file selection
+
+        // ── Gallery / file picker ─────────────────────────────────────────────
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
                 selectedFile = input.files[0];
-                
                 const maxSize = 10 * 1024 * 1024;
                 if (selectedFile.size > maxSize) {
                     showStatus('upload-status', 'error', 'File too large (max 10MB)');
@@ -671,30 +916,26 @@
                     document.getElementById('upload-button').disabled = true;
                     return;
                 }
-                
                 document.getElementById('file-name').textContent = '✓ ' + selectedFile.name;
                 document.getElementById('upload-button').disabled = false;
+                // Close camera modal if open
+                if (cameraStream) closeCamera();
             }
         }
-        
-        // Upload photo
+
+        // ── Upload ────────────────────────────────────────────────────────────
         async function uploadPhoto() {
             if (!selectedFile) return;
-            
             showStep('step-processing');
-            
             const formData = new FormData();
             formData.append('email', userEmail);
             formData.append('photo', selectedFile);
-            
             try {
                 const response = await fetch(`${API_URL}/api/upload`, {
                     method: 'POST',
                     body: formData
                 });
-                
                 const data = await response.json();
-                
                 if (response.ok && data.status === 'completed') {
                     currentJobId = data.job_id;
                     showStep('step-results');
@@ -710,43 +951,333 @@
                 showStep('step-upload');
             }
         }
-        
-        // Download files
+
+        // ── Download ──────────────────────────────────────────────────────────
         function downloadFile(type) {
             window.open(`${API_URL}/api/download/${currentJobId}/${type}`, '_blank');
         }
-        
-        // Helper functions
+
+        // ── Helpers ───────────────────────────────────────────────────────────
         function showStep(stepId) {
-            document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
             document.getElementById(stepId).classList.add('active');
             window.scrollTo(0, 0);
         }
-        
+
         function showStatus(elementId, type, message) {
-            const element = document.getElementById(elementId);
-            element.className = `status ${type}`;
-            element.textContent = message;
-            element.style.display = 'block';
+            const el = document.getElementById(elementId);
+            el.className = `status ${type}`;
+            el.textContent = message;
+            el.style.display = 'block';
         }
-        
+
         function resetToEmail() {
-            userEmail = '';
-            selectedFile = null;
-            turnstileToken = null;
+            userEmail = ''; selectedFile = null; turnstileToken = null;
             document.getElementById('email-input').value = '';
             document.getElementById('file-name').textContent = '';
             document.getElementById('email-continue-btn').disabled = true;
             if (window.turnstile) window.turnstile.reset();
             showStep('step-email');
         }
-        
+
         function resetToUpload() {
             selectedFile = null;
             document.getElementById('file-name').textContent = '';
             document.getElementById('upload-button').disabled = true;
             showStep('step-upload');
         }
+
+        // =========================================================
+        //  CAMERA MODAL — open / close / capture
+        // =========================================================
+
+        async function openCamera() {
+            const modal = document.getElementById('camera-modal');
+            const video = document.getElementById('camera-video');
+
+            // Request rear camera with highest available resolution
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width:  { ideal: 4096 },
+                        height: { ideal: 3072 }
+                    },
+                    audio: false
+                });
+                video.srcObject = cameraStream;
+            } catch (err) {
+                alert('Cannot access camera: ' + err.message);
+                return;
+            }
+
+            modal.classList.add('active');
+
+            // Draw oval once video metadata is loaded
+            video.addEventListener('loadedmetadata', drawOvalOverlay, { once: true });
+            // Also redraw on window resize (orientation change)
+            window.addEventListener('resize', drawOvalOverlay);
+
+            // Start level indicator
+            startLevelIndicator();
+        }
+
+        function closeCamera() {
+            const modal = document.getElementById('camera-modal');
+            modal.classList.remove('active');
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+
+            stopLevelIndicator();
+            window.removeEventListener('resize', drawOvalOverlay);
+        }
+
+        // ── Capture the RAW full frame (no overlay) and save to camera roll ──
+        async function capturePhoto() {
+            const video = document.getElementById('camera-video');
+            const canvas = document.getElementById('capture-canvas');
+
+            // Use native video resolution
+            canvas.width  = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            // Convert canvas to blob (JPEG, high quality)
+            canvas.toBlob(async (blob) => {
+                if (!blob) { alert('Capture failed — please try again.'); return; }
+
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename  = `SpudSizer_${timestamp}.jpg`;
+
+                // 1. Set as selected file for upload
+                selectedFile = new File([blob], filename, { type: 'image/jpeg' });
+                document.getElementById('file-name').textContent = '✓ ' + filename;
+                document.getElementById('upload-button').disabled = false;
+
+                // 2. Save to camera roll (Web Share API with files, or fallback download)
+                await saveToGallery(blob, filename);
+
+                // Close camera
+                closeCamera();
+            }, 'image/jpeg', 0.95);
+        }
+
+        /**
+         * saveToGallery — tries to write the captured JPEG to the device's
+         * camera roll / photo library.
+         *
+         * Strategy:
+         *  A) Web Share API with files (iOS 15+ Safari, Chrome Android 86+)
+         *     → triggers the native "Save Image" sheet.
+         *  B) Fallback: programmatic <a download> so the user gets the file
+         *     in their Downloads folder and can save it from there.
+         */
+        async function saveToGallery(blob, filename) {
+            // Strategy A — Share sheet (iOS / Android)
+            if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'image/jpeg' })] })) {
+                try {
+                    await navigator.share({
+                        files: [new File([blob], filename, { type: 'image/jpeg' })],
+                        title: 'SpudSizer photo'
+                    });
+                    return; // user saved (or dismissed — either way we're done)
+                } catch (e) {
+                    // User cancelled share — that's fine, just continue
+                    if (e.name === 'AbortError') return;
+                    // Other errors fall through to strategy B
+                }
+            }
+
+            // Strategy B — trigger browser download
+            const url = URL.createObjectURL(blob);
+            const a   = document.createElement('a');
+            a.href     = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }
+
+        // =========================================================
+        //  OVAL OVERLAY — drawn as an SVG vignette
+        //  The ellipse is ~72% of viewport width, ~80% of height,
+        //  centred in the frame, leaving a clear window in the middle.
+        // =========================================================
+
+        function drawOvalOverlay() {
+            const svg = document.getElementById('oval-overlay');
+            const W = window.innerWidth;
+            const H = window.innerHeight;
+
+            // Oval dimensions — percentages tuned so the safe zone is generous
+            // but clearly avoids the distorted edges of the lens.
+            const rx = W * 0.36;   // 72 % of width  (radius = half)
+            const ry = H * 0.40;   // 80 % of height (radius = half)
+            const cx = W / 2;
+            const cy = H / 2;
+
+            svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+            svg.setAttribute('width', W);
+            svg.setAttribute('height', H);
+
+            svg.innerHTML = `
+                <defs>
+                    <mask id="oval-mask">
+                        <!-- White = show overlay; black = cut-out (clear) -->
+                        <rect width="${W}" height="${H}" fill="white"/>
+                        <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="black"/>
+                    </mask>
+                </defs>
+
+                <!-- Semi-transparent grey vignette, masked to donut shape -->
+                <rect
+                    width="${W}" height="${H}"
+                    fill="rgba(0,0,0,0.48)"
+                    mask="url(#oval-mask)"
+                />
+
+                <!-- Oval border — white dashed line to make it visible -->
+                <ellipse
+                    cx="${cx}" cy="${cy}"
+                    rx="${rx}" ry="${ry}"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.75)"
+                    stroke-width="2"
+                    stroke-dasharray="12 6"
+                />
+            `;
+        }
+
+        // =========================================================
+        //  LEVEL INDICATOR — DeviceOrientation crosshair
+        //
+        //  iOS: beta  = pitch (tilt forward/back, –90…90°)
+        //       gamma = roll  (tilt left/right, –90…90°)
+        //  For a nadir (straight-down) shot: beta ≈ –90°, gamma ≈ 0°
+        //  but because screen orientation varies we work in relative space:
+        //  we offset by the initial reading so users just have to align
+        //  the crosshairs regardless of initial orientation.
+        //
+        //  The moving crosshair shifts from centre proportionally to how
+        //  far the phone deviates from level, clamped to ±40 px.
+        // =========================================================
+
+        const LEVEL_THRESHOLD_DEG = 2.5; // within ±2.5° = "level"
+        const MAX_SHIFT_PX = 42;          // max crosshair displacement in px
+        const MAX_DEV_DEG  = 15;          // degrees at which shift is maxed out
+
+        function startLevelIndicator() {
+            const movingCH = document.getElementById('crosshair-moving');
+            const badge    = document.getElementById('level-badge');
+
+            // Position moving crosshair at centre initially
+            movingCH.style.left = (window.innerWidth  / 2 - 18) + 'px';
+            movingCH.style.top  = (window.innerHeight / 2 - 18) + 'px';
+
+            // Check if DeviceOrientationEvent requires permission (iOS 13+)
+            if (typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // We need to request after a user gesture — show a gentle prompt
+                showOrientationPermissionButton();
+                return;
+            }
+
+            // Android / desktop — add listener directly
+            orientationHandler = handleOrientation;
+            window.addEventListener('deviceorientation', orientationHandler, true);
+        }
+
+        function showOrientationPermissionButton() {
+            // Insert a small button inside the camera controls bar
+            const ctrl = document.getElementById('camera-controls');
+            if (document.getElementById('btn-level-permission')) return;
+            const btn = document.createElement('button');
+            btn.id = 'btn-level-permission';
+            btn.textContent = '🎯 Enable Level';
+            btn.style.cssText = `
+                position:absolute; top:0; left:50%; transform:translate(-50%,-120%);
+                background:rgba(31,79,216,0.9); color:#fff; border:none;
+                border-radius:20px; padding:8px 18px; font-size:13px; font-weight:600;
+                cursor:pointer; margin:0; width:auto; min-height:unset;
+            `;
+            btn.onclick = async () => {
+                try {
+                    const perm = await DeviceOrientationEvent.requestPermission();
+                    if (perm === 'granted') {
+                        orientationHandler = handleOrientation;
+                        window.addEventListener('deviceorientation', orientationHandler, true);
+                        btn.remove();
+                    }
+                } catch(e) { btn.remove(); }
+            };
+            ctrl.appendChild(btn);
+        }
+
+        function stopLevelIndicator() {
+            if (orientationHandler) {
+                window.removeEventListener('deviceorientation', orientationHandler, true);
+                orientationHandler = null;
+            }
+        }
+
+        function handleOrientation(event) {
+            const movingCH = document.getElementById('crosshair-moving');
+            const badge    = document.getElementById('level-badge');
+            if (!movingCH) return;
+
+            // beta  = tilt forward/back  (–180 to 180, 0 = upright portrait)
+            // gamma = tilt left/right    (–90  to 90,  0 = upright portrait)
+            const beta  = event.beta  ?? 0;
+            const gamma = event.gamma ?? 0;
+
+            // For a nadir shot (camera pointing straight down) in portrait:
+            //   beta ≈ –90° (or 90° depending on device/OS) and gamma ≈ 0°.
+            // We treat "perfect level" as gamma=0, and for pitch we track
+            // deviation from –90° (laying flat face-down in landscape = different).
+            // Simpler & universal: measure how far beta is from –90 (or 90).
+
+            // Determine which "flat" orientation beta approaches:
+            // if holding phone face-down over ground, beta goes toward –90.
+            const pitchDev = Math.abs(Math.abs(beta) - 90); // deviation from flat
+            const rollDev  = gamma; // deviation from 0
+
+            // Map deviations to pixel shifts
+            const shiftX = clamp(rollDev  / MAX_DEV_DEG * MAX_SHIFT_PX, -MAX_SHIFT_PX, MAX_SHIFT_PX);
+            const shiftY = clamp(pitchDev / MAX_DEV_DEG * MAX_SHIFT_PX, -MAX_SHIFT_PX, MAX_SHIFT_PX);
+
+            const centreX = window.innerWidth  / 2 - 18;
+            const centreY = window.innerHeight / 2 - 18;
+
+            movingCH.style.left = (centreX + shiftX) + 'px';
+            movingCH.style.top  = (centreY + shiftY) + 'px';
+
+            // Determine if level
+            const isLevel = (pitchDev < LEVEL_THRESHOLD_DEG) && (Math.abs(rollDev) < LEVEL_THRESHOLD_DEG);
+            movingCH.className = isLevel ? 'level' : 'unlevel';
+
+            if (isLevel) {
+                badge.textContent = '✓ Level — shoot now!';
+                badge.className   = 'level-ok';
+            } else {
+                const pitchHint = pitchDev > LEVEL_THRESHOLD_DEG
+                    ? (beta < 0 ? 'Tilt more down' : 'Tilt more up') : '';
+                const rollHint  = Math.abs(rollDev) > LEVEL_THRESHOLD_DEG
+                    ? (rollDev < 0 ? 'Tilt right' : 'Tilt left') : '';
+                badge.textContent = [pitchHint, rollHint].filter(Boolean).join(' · ') || 'Hold level — align crosshairs';
+                badge.className   = '';
+            }
+        }
+
+        function clamp(v, min, max) { return Math.min(Math.max(v, min), max); }
+
+        // Draw oval immediately when page loads (in case modal is forced open)
+        window.addEventListener('load', drawOvalOverlay);
+        window.addEventListener('resize', drawOvalOverlay);
     </script>
 </body>
 </html>
