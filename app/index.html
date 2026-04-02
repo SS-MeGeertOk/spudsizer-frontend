@@ -832,7 +832,7 @@
            APPLICATION STATE
            All mutable state is held here; no hidden form fields or cookies.
            ---------------------------------------------------------------- */
-        let userEmail      = '';     // Verified email — used as the user identifier
+        let userEmail      = '';     // Email entered at step 1; embedded in filenames and sent with uploads for backend traceability
         let currentJobId   = null;   // Job ID returned by the API after a successful upload
         let selectedFile   = null;   // File object queued for upload
         let turnstileToken = null;   // Cloudflare Turnstile verification token
@@ -855,13 +855,20 @@
         }
 
         /**
-         * Validates the email field, then verifies with the API that the
-         * address is authorised to submit measurements.
+         * Validates the email field and advances to the photo step.
          *
-         * On success  → stores the email and advances to the photo step.
-         * On API error → shows an inline message and stays on step 1.
+         * Access control is handled entirely by Cloudflare Access — only
+         * authorised email addresses can reach this page at all. The app
+         * therefore does not need to re-verify the address against the API.
+         *
+         * The email is stored in state so it can be embedded in filenames
+         * and sent with the upload form, giving the backend a traceable
+         * link between every photo and the user who submitted it.
+         *
+         * On valid input   → stores the email and advances to the photo step.
+         * On invalid input → shows an inline error and stays on step 1.
          */
-        async function checkEmail() {
+        function checkEmail() {
             const email = document.getElementById('email-input').value.trim();
 
             if (!email || !email.includes('@')) {
@@ -875,26 +882,9 @@
             }
 
             userEmail = email;
-            showStatus('email-status', 'info', 'Checking…');
 
-            try {
-                const response = await fetch(
-                    `${API_URL}/api/check-user/${encodeURIComponent(email)}`
-                );
-                const data = await response.json();
-
-                if (response.ok) {
-                    showStatus('email-status', 'success', 'Welcome!');
-                    setTimeout(() => {
-                        document.getElementById('user-email-display').textContent = email;
-                        showStep('step-upload');
-                    }, 600);
-                } else {
-                    showStatus('email-status', 'error', data.detail || 'Verification failed.');
-                }
-            } catch (err) {
-                showStatus('email-status', 'error', 'Connection error. Please try again.');
-            }
+            document.getElementById('user-email-display').textContent = email;
+            showStep('step-upload');
         }
 
 
@@ -1144,8 +1134,12 @@
                     return;
                 }
 
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename  = `SpudSizer_${timestamp}.jpg`;
+                // Build a traceable filename: email (sanitised) + UTC timestamp.
+                // Replacing @ and . keeps the name safe on all file systems.
+                // Example: geert_vanmaldegem_outlook_com_2024-11-05T14-32-07.jpg
+                const safeEmail = userEmail.replace(/[@.]/g, '_');
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename  = `${safeEmail}_${timestamp}.jpg`;
 
                 // Wrap as a File to slot into the existing upload flow
                 selectedFile = new File([blob], filename, { type: 'image/jpeg' });
