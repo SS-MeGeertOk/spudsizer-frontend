@@ -199,13 +199,7 @@
             border-color: #1F4FD8; background: #F0F4FF;
             box-shadow: 0 0 0 3px rgba(31,79,216,0.15);
         }
-        .shape-icon {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 8px;
-            display: block;
-            object-fit: contain;
-        }
+        .shape-icon { font-size: 40px; margin-bottom: 8px; display: block; }
         .shape-label { font-size: 13px; font-weight: 600; color: #0B1C2D; }
 
         /* ================================================================
@@ -318,7 +312,7 @@
         }
 
         /* ================================================================
-           20. CAMERA MODAL
+           20. CAMERA MODAL — forced landscape layout
            ================================================================ */
         #camera-modal {
             display: none; position: fixed; inset: 0;
@@ -332,16 +326,20 @@
         #capture-canvas { display: none; }
         #oval-overlay { position: absolute; inset: 0; pointer-events: none; }
         #oval-label {
-            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: 50%; left: 16px;
+            transform: translateY(50%);
             color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 500;
             text-align: center; pointer-events: none; white-space: nowrap;
             text-shadow: 0 1px 4px rgba(0,0,0,0.8);
         }
+
+        /* Controls bar — right side, vertical layout for landscape */
         #camera-controls {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            padding: 20px 32px max(24px, env(safe-area-inset-bottom));
-            display: flex; align-items: center; justify-content: space-between;
-            background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%);
+            position: absolute; top: 0; right: 0; bottom: 0;
+            width: 100px;
+            padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            background: linear-gradient(to left, rgba(0,0,0,0.65) 0%, transparent 100%);
         }
         #btn-close-camera {
             width: 48px; height: 48px; border-radius: 50%;
@@ -358,13 +356,23 @@
             transition: transform 0.1s;
         }
         #btn-capture:active { transform: scale(0.90); }
-        #btn-gallery {
-            width: 48px; height: 48px; border-radius: 10px;
-            background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.55);
-            color: white; font-size: 22px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; margin: 0; padding: 0; min-height: unset;
+
+        /* Spacer to balance layout (close on top, shutter in middle) */
+        #camera-spacer {
+            width: 48px; height: 48px;
+            visibility: hidden;
         }
+
+        /* Force landscape hint overlay */
+        #rotate-hint {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.9); z-index: 1001;
+            flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center; padding: 40px;
+        }
+        #rotate-hint.active { display: flex; }
+        .rotate-icon { font-size: 64px; margin-bottom: 24px; }
+        .rotate-text { font-size: 18px; font-weight: 600; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -478,15 +486,15 @@
                 <label class="field-label">Potato Shape</label>
                 <div class="shape-grid">
                     <div class="shape-card" onclick="selectShape(this, 'round')">
-                        <img class="shape-icon" src="/assets/PotatoCutRound.webp" alt="Round">
+                        <span class="shape-icon">⚫</span>
                         <span class="shape-label">Round</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'oval')">
-                        <img class="shape-icon" src="/assets/PotatoCutOval.webp" alt="Oval">
+                        <span class="shape-icon">🥚</span>
                         <span class="shape-label">Oval</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'long')">
-                        <img class="shape-icon" src="/assets/PotatoCutLong.webp" alt="Long">
+                        <span class="shape-icon">🥖</span>
                         <span class="shape-label">Long</span>
                     </div>
                 </div>
@@ -525,15 +533,12 @@
                 <div class="status info"><strong>⏱️ Please wait</strong><br>Analysis typically takes a few seconds.</div>
             </div>
 
-            <!-- STEP 5: Results -->
+            <!-- ── STEP 5: Results ─────────────────────────────────────── -->
             <div id="step-results" class="step">
                 <h1>Analysis Complete</h1>
                 <p class="subtitle">Your measurement results are ready</p>
                 <div class="status success">✓ Analysis complete</div>
-                <div class="download-buttons">
-                    <button class="primary" onclick="downloadFile('pdf')">📄 Download PDF</button>
-                    <button class="primary" onclick="downloadFile('csv')">📊 Download CSV</button>
-                </div>
+                <button class="primary" onclick="downloadFile('pdf')" style="margin-top: 20px;">📄 Download PDF Report</button>
                 <button class="secondary" onclick="resetToPhoto()">Measure Another Batch</button>
             </div>
 
@@ -552,8 +557,14 @@
         <div id="camera-controls">
             <button id="btn-close-camera" onclick="closeCamera()" aria-label="Close camera">✕</button>
             <button id="btn-capture" onclick="capturePhoto()" aria-label="Take photo"></button>
-            <button id="btn-gallery" onclick="document.getElementById('photo-input').click()" aria-label="Gallery">🖼</button>
+            <div id="camera-spacer"></div>
         </div>
+    </div>
+
+    <!-- Rotate hint overlay -->
+    <div id="rotate-hint">
+        <div class="rotate-icon">📱↻</div>
+        <div class="rotate-text">Please rotate your phone<br>to landscape mode</div>
     </div>
 
     <!-- JAVASCRIPT -->
@@ -588,10 +599,7 @@
                 return;
             }
             userEmail = email;
-
-            const emailDisplay = document.getElementById('user-email-display');
-            if (emailDisplay) emailDisplay.textContent = email;
-
+            document.getElementById('user-email-display').textContent = email;
             showStep('step-photo');
         }
 
@@ -766,11 +774,12 @@
         }
 
         /* ================================================================
-           CAMERA MODAL
+           CAMERA MODAL — landscape enforced
            ================================================================ */
         async function openCamera() {
             const modal = document.getElementById('camera-modal');
             const video = document.getElementById('camera-video');
+
             try {
                 cameraStream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } },
@@ -781,21 +790,69 @@
                 alert('Camera access denied: ' + err.message);
                 return;
             }
+
+            // Try to lock screen to landscape
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape');
+                }
+            } catch (e) {
+                // Lock not supported on all browsers — we'll show rotate hint instead
+                console.log('Screen lock not supported:', e.message);
+            }
+
             modal.classList.add('active');
+            checkOrientation();
+
             video.addEventListener('loadedmetadata', drawOvalOverlay, { once: true });
-            window.addEventListener('resize', drawOvalOverlay);
+            window.addEventListener('resize', onCameraResize);
+            window.addEventListener('orientationchange', onCameraResize);
+        }
+
+        function onCameraResize() {
+            drawOvalOverlay();
+            checkOrientation();
+        }
+
+        function checkOrientation() {
+            const hint = document.getElementById('rotate-hint');
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const cameraOpen = document.getElementById('camera-modal').classList.contains('active');
+
+            if (cameraOpen && isPortrait) {
+                hint.classList.add('active');
+            } else {
+                hint.classList.remove('active');
+            }
         }
 
         function closeCamera() {
             document.getElementById('camera-modal').classList.remove('active');
+            document.getElementById('rotate-hint').classList.remove('active');
+
             if (cameraStream) {
                 cameraStream.getTracks().forEach(t => t.stop());
                 cameraStream = null;
             }
-            window.removeEventListener('resize', drawOvalOverlay);
+
+            // Unlock screen orientation
+            try {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            } catch (e) {}
+
+            window.removeEventListener('resize', onCameraResize);
+            window.removeEventListener('orientationchange', onCameraResize);
         }
 
         function capturePhoto() {
+            // Only allow capture in landscape
+            if (window.innerHeight > window.innerWidth) {
+                alert('Please rotate your phone to landscape mode before taking a photo.');
+                return;
+            }
+
             const video = document.getElementById('camera-video');
             const canvas = document.getElementById('capture-canvas');
             canvas.width = video.videoWidth;
@@ -812,7 +869,6 @@
                 document.getElementById('file-name').textContent = '✓ ' + filename;
                 document.getElementById('photo-continue-btn').disabled = false;
 
-                // Show preview
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     document.getElementById('preview-img').src = e.target.result;
