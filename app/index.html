@@ -199,7 +199,13 @@
             border-color: #1F4FD8; background: #F0F4FF;
             box-shadow: 0 0 0 3px rgba(31,79,216,0.15);
         }
-        .shape-icon { font-size: 40px; margin-bottom: 8px; display: block; }
+        .shape-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 8px;
+            display: block;
+            object-fit: contain;
+        }
         .shape-label { font-size: 13px; font-weight: 600; color: #0B1C2D; }
 
         /* ================================================================
@@ -472,15 +478,15 @@
                 <label class="field-label">Potato Shape</label>
                 <div class="shape-grid">
                     <div class="shape-card" onclick="selectShape(this, 'round')">
-                        <span class="shape-icon">⚫</span>
+                        <img class="shape-icon" src="/assets/PotatoCutRound.webp" alt="Round">
                         <span class="shape-label">Round</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'oval')">
-                        <span class="shape-icon">🥚</span>
+                        <img class="shape-icon" src="/assets/PotatoCutOval.webp" alt="Oval">
                         <span class="shape-label">Oval</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'long')">
-                        <span class="shape-icon">🥖</span>
+                        <img class="shape-icon" src="/assets/PotatoCutLong.webp" alt="Long">
                         <span class="shape-label">Long</span>
                     </div>
                 </div>
