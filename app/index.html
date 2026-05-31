@@ -1,24 +1,15 @@
 <!DOCTYPE html>
 <!--
-    SpudSizer — Field Measurement Web App
-    ======================================
-    Captures a photo of potatoes through a guided camera viewfinder,
-    then uploads it to the SpudSizer API for size-grading analysis.
-
+    SpudSizer — Field Measurement Web App v2
+    ==========================================
     Flow:
       Step 1 — Email entry + Turnstile bot protection
       Step 2 — Camera viewfinder (oval guide) or gallery picker
-      Step 3 — Processing spinner
-      Step 4 — Results + PDF / CSV download
+      Step 3 — Sample details (variety, length, growth, shape, prices)
+      Step 4 — Processing spinner
+      Step 5 — Results + PDF / CSV download
 
-    Key design decisions:
-      • The oval overlay is purely cosmetic — the captured image is the
-        full, unmodified camera frame. The oval guides the user to keep
-        potatoes in the lens centre where distortion is negligible,
-        eliminating the need for per-device camera calibration.
-      • No calibration step; the oval workaround makes it unnecessary.
-      • Font-size >= 16 px on all inputs prevents iOS Safari from auto-zooming.
-      • z-index layers: header (100) < camera modal (1000).
+    Output: Single JSON payload containing all input fields + image.
 -->
 <html lang="en">
 <head>
@@ -29,7 +20,7 @@
     <meta name="theme-color" content="#1F4FD8">
     <title>SpudSizer — Measurement</title>
 
-    <!-- ── Favicons ─────────────────────────────────────────────────────── -->
+    <!-- Favicons -->
     <link rel="icon" type="image/png" href="/assets/favicon-96x96.png" sizes="96x96">
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
     <link rel="shortcut icon" href="/assets/favicon.ico">
@@ -37,12 +28,12 @@
     <meta name="apple-mobile-web-app-title" content="Spudsizer">
     <link rel="manifest" href="/assets/site.webmanifest">
 
-    <!-- ── Google Fonts ─────────────────────────────────────────────────── -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- ── Cloudflare Turnstile — invisible bot protection ──────────────── -->
+    <!-- Cloudflare Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
     <style>
@@ -50,565 +41,333 @@
            1. BASE RESET
            ================================================================ */
         *, *::before, *::after {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent; /* suppress blue flash on iOS tap */
+            margin: 0; padding: 0; box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
-
-        html {
-            height: -webkit-fill-available; /* correct 100vh on iOS Safari */
-        }
-
+        html { height: -webkit-fill-available; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #F4F6F8;
-            color: #0B1C2D;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
-            display: flex;
-            flex-direction: column;
+            background: #F4F6F8; color: #0B1C2D;
+            min-height: 100vh; min-height: -webkit-fill-available;
+            display: flex; flex-direction: column;
             touch-action: pan-y;
         }
-
 
         /* ================================================================
            2. HEADER
            ================================================================ */
         header {
-            background: white;
-            padding: 12px 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            background: white; padding: 12px 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            position: sticky; top: 0; z-index: 100;
         }
-
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            flex-shrink: 0;
-        }
-
-        .logo-icon svg {
-            width: 100%;
-            height: 100%;
-        }
-
-        .logo-text {
-            font-size: 20px;
-            font-weight: 700;
-            color: #0B1C2D;
-            letter-spacing: -0.02em;
-        }
-
-        .tagline {
-            font-size: 11px;
-            color: #6B7280;
-            margin-top: 2px;
-        }
-
+        .logo-container { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 40px; height: 40px; flex-shrink: 0; }
+        .logo-icon img { width: 100%; height: 100%; object-fit: contain; }
+        .logo-text { font-size: 20px; font-weight: 700; color: #0B1C2D; letter-spacing: -0.02em; }
+        .tagline { font-size: 11px; color: #6B7280; margin-top: 2px; }
 
         /* ================================================================
            3. MAIN LAYOUT
            ================================================================ */
         main {
-            flex: 1;
-            padding: 16px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            flex: 1; padding: 16px;
+            overflow-y: auto; -webkit-overflow-scrolling: touch;
         }
-
         .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 24px 20px;
+            background: white; border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            max-width: 600px; margin: 0 auto; padding: 24px 20px;
         }
-
-        h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #0B1C2D;
-            margin-bottom: 6px;
-        }
-
-        .subtitle {
-            font-size: 14px;
-            color: #6B7280;
-            margin-bottom: 24px;
-        }
-
+        h1 { font-size: 24px; font-weight: 700; color: #0B1C2D; margin-bottom: 6px; }
+        .subtitle { font-size: 14px; color: #6B7280; margin-bottom: 24px; }
 
         /* ================================================================
-           4. STEP TRANSITIONS
-           Only the .active step is visible; toggled via JS showStep().
+           4. PROGRESS INDICATOR
            ================================================================ */
-        .step {
-            display: none;
+        .progress {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 24px; padding: 0 4px;
+        }
+        .progress-step {
+            flex: 1; height: 4px; border-radius: 2px;
+            background: #E5E7EB; transition: background 0.3s;
+        }
+        .progress-step.active { background: #1F4FD8; }
+        .progress-step.done { background: #2ED47A; }
+        .progress-label {
+            font-size: 12px; color: #6B7280; font-weight: 500;
+            white-space: nowrap; margin-left: 8px;
         }
 
-        .step.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
+        /* ================================================================
+           5. STEP TRANSITIONS
+           ================================================================ */
+        .step { display: none; }
+        .step.active { display: block; animation: fadeIn 0.3s ease; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0);   }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-
         /* ================================================================
-           5. FORM INPUTS
-           font-size >= 16 px prevents iOS Safari from auto-zooming on focus.
+           6. FORM INPUTS — font-size >= 16px prevents iOS zoom
            ================================================================ */
-        input[type="email"] {
-            width: 100%;
-            padding: 16px;
-            margin: 8px 0;
-            border: 2px solid #E5E7EB;
-            border-radius: 12px;
-            font-size: 16px;
-            font-family: 'Inter', sans-serif;
-            transition: border-color 0.2s;
-            background: white;
+        input[type="email"], input[type="text"], input[type="number"], textarea {
+            width: 100%; padding: 16px; margin: 6px 0;
+            border: 2px solid #E5E7EB; border-radius: 12px;
+            font-size: 16px; font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s; background: white;
         }
-
-        input:focus {
-            outline: none;
-            border-color: #1F4FD8;
-            box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.1);
+        input:focus, textarea:focus {
+            outline: none; border-color: #1F4FD8;
+            box-shadow: 0 0 0 3px rgba(31,79,216,0.1);
         }
+        textarea { resize: vertical; min-height: 80px; }
 
+        .field-label {
+            display: block; font-size: 14px; font-weight: 600;
+            color: #0B1C2D; margin-top: 16px; margin-bottom: 4px;
+        }
+        .field-helper {
+            font-size: 12px; color: #6B7280; margin-top: 2px;
+        }
 
         /* ================================================================
-           6. BUTTONS
-           min-height: 52 px is the minimum recommended touch target size.
+           7. BUTTONS — min-height 52px touch target
            ================================================================ */
         button {
-            width: 100%;
-            padding: 18px;
-            margin: 12px 0;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
+            width: 100%; padding: 18px; margin: 12px 0;
+            border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600;
             font-family: 'Inter', sans-serif;
-            cursor: pointer;
-            transition: all 0.2s;
-            min-height: 52px;
+            cursor: pointer; transition: all 0.2s; min-height: 52px;
         }
-
-        button.primary {
-            background: #1F4FD8;
-            color: white;
-        }
-
-        button.primary:active {
-            background: #1a42b8;
-            transform: scale(0.98);
-        }
-
-        button.secondary {
-            background: white;
-            color: #1F4FD8;
-            border: 2px solid #1F4FD8;
-        }
-
-        button:disabled {
-            background: #E5E7EB;
-            color: #9CA3AF;
-            transform: none;
-            cursor: not-allowed;
-        }
-
+        button.primary { background: #1F4FD8; color: white; }
+        button.primary:active { background: #1a42b8; transform: scale(0.98); }
+        button.secondary { background: white; color: #1F4FD8; border: 2px solid #1F4FD8; }
+        button:disabled { background: #E5E7EB; color: #9CA3AF; transform: none; cursor: not-allowed; }
 
         /* ================================================================
-           7. FILE UPLOAD / GALLERY PICKER
-           The visible styled zone acts as a label for a hidden file input.
+           8. FILE UPLOAD
            ================================================================ */
         .file-upload {
-            border: 3px dashed #1F4FD8;
-            background: #F8FAFF;
-            padding: 40px 20px;
-            text-align: center;
-            border-radius: 16px;
-            margin: 16px 0;
-            cursor: pointer;
-            transition: all 0.2s;
+            border: 3px dashed #1F4FD8; background: #F8FAFF;
+            padding: 40px 20px; text-align: center;
+            border-radius: 16px; margin: 16px 0;
+            cursor: pointer; transition: all 0.2s;
         }
-
-        .file-upload:active {
-            background: #F0F4FF;
-            transform: scale(0.98);
-        }
-
-        .file-upload input {
-            display: none; /* triggered programmatically via .click() */
-        }
-
+        .file-upload:active { background: #F0F4FF; transform: scale(0.98); }
+        .file-upload input { display: none; }
         .camera-icon {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 16px;
-            background: #1F4FD8;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
+            width: 64px; height: 64px; margin: 0 auto 16px;
+            background: #1F4FD8; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 32px;
         }
-
-        .camera-icon::before {
-            content: "📷";
-        }
-
-        .file-upload-text {
-            font-size: 16px;
-            color: #0B1C2D;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-
-        .file-upload-hint {
-            font-size: 13px;
-            color: #6B7280;
-        }
-
-        /* Confirmation label shown after a file is selected */
-        #file-name {
-            color: #1F4FD8;
-            margin-top: 12px;
-            font-weight: 500;
-            font-size: 14px;
-            word-break: break-word;
-        }
-
+        .camera-icon::before { content: "📷"; }
+        .file-upload-text { font-size: 16px; color: #0B1C2D; font-weight: 600; margin-bottom: 6px; }
+        .file-upload-hint { font-size: 13px; color: #6B7280; }
+        #file-name { color: #1F4FD8; margin-top: 12px; font-weight: 500; font-size: 14px; word-break: break-word; }
 
         /* ================================================================
-           8. STATUS MESSAGES
+           9. IMAGE PREVIEW
+           ================================================================ */
+        .image-preview {
+            display: none; margin: 16px 0; text-align: center;
+        }
+        .image-preview.active { display: block; }
+        .image-preview img {
+            max-width: 100%; max-height: 300px;
+            border-radius: 12px; object-fit: contain;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        /* ================================================================
+           10. POTATO SHAPE SELECTOR
+           ================================================================ */
+        .shape-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin: 12px 0;
+        }
+        .shape-card {
+            border: 3px solid #E5E7EB; border-radius: 16px;
+            padding: 20px 12px; text-align: center;
+            cursor: pointer; transition: all 0.2s; background: white;
+        }
+        .shape-card:active { transform: scale(0.95); }
+        .shape-card.selected {
+            border-color: #1F4FD8; background: #F0F4FF;
+            box-shadow: 0 0 0 3px rgba(31,79,216,0.15);
+        }
+        .shape-icon { font-size: 40px; margin-bottom: 8px; display: block; }
+        .shape-label { font-size: 13px; font-weight: 600; color: #0B1C2D; }
+
+        /* ================================================================
+           11. ACCORDION (Market Prices)
+           ================================================================ */
+        .accordion { margin: 16px 0; border: 2px solid #E5E7EB; border-radius: 12px; overflow: hidden; }
+        .accordion-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px; cursor: pointer; background: #F8FAFF;
+            font-weight: 600; font-size: 15px; color: #0B1C2D;
+            transition: background 0.2s;
+        }
+        .accordion-header:active { background: #F0F4FF; }
+        .accordion-arrow { transition: transform 0.3s; font-size: 18px; }
+        .accordion.open .accordion-arrow { transform: rotate(180deg); }
+        .accordion-body {
+            max-height: 0; overflow: hidden;
+            transition: max-height 0.3s ease; padding: 0 16px;
+        }
+        .accordion.open .accordion-body { max-height: 600px; padding: 8px 16px 16px; }
+        .price-row {
+            display: flex; align-items: center; gap: 12px;
+            margin: 6px 0;
+        }
+        .price-label {
+            min-width: 60px; font-size: 14px; font-weight: 500; color: #0B1C2D;
+        }
+        .price-row input {
+            flex: 1; padding: 12px; margin: 0;
+            border-radius: 10px; font-size: 15px;
+        }
+        .price-unit { font-size: 13px; color: #6B7280; white-space: nowrap; }
+
+        /* ================================================================
+           12. STATUS MESSAGES
            ================================================================ */
         .status {
-            padding: 14px;
-            border-radius: 12px;
-            margin: 16px 0;
-            font-size: 14px;
-            font-weight: 500;
-            line-height: 1.5;
+            padding: 14px; border-radius: 12px; margin: 16px 0;
+            font-size: 14px; font-weight: 500; line-height: 1.5;
         }
-
-        .status.info {
-            background: #F0F4FF;
-            color: #1F4FD8;
-            border: 1px solid #D4E1FF;
-        }
-
-        .status.success {
-            background: #ECFDF5;
-            color: #059669;
-            border: 1px solid #A7F3D0;
-        }
-
-        .status.error {
-            background: #FEF2F2;
-            color: #DC2626;
-            border: 1px solid #FECACA;
-        }
-
+        .status.info { background: #F0F4FF; color: #1F4FD8; border: 1px solid #D4E1FF; }
+        .status.success { background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; }
+        .status.error { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
 
         /* ================================================================
-           9. LOADING SPINNER (Processing step)
+           13. LOADER
            ================================================================ */
         .loader {
-            border: 4px solid #F4F6F8;
-            border-top-color: #1F4FD8;
-            border-radius: 50%;
-            width: 56px;
-            height: 56px;
-            animation: spin 0.8s linear infinite;
-            margin: 32px auto;
+            border: 4px solid #F4F6F8; border-top-color: #1F4FD8;
+            border-radius: 50%; width: 56px; height: 56px;
+            animation: spin 0.8s linear infinite; margin: 32px auto;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* ================================================================
-           10. DOWNLOAD BUTTONS (Results step)
-           Stacked on mobile; side-by-side on tablets and above.
+           14. DOWNLOAD BUTTONS
            ================================================================ */
         .download-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 20px;
+            display: flex; flex-direction: column; gap: 12px; margin-top: 20px;
         }
 
-
         /* ================================================================
-           11. INFO BOX — contextual tips
+           15. INFO BOX & INDICATOR
            ================================================================ */
         .info-box {
-            background: #F8FAFF;
-            border: 1px solid #D4E1FF;
-            border-radius: 12px;
-            padding: 16px;
-            margin: 16px 0;
+            background: #F8FAFF; border: 1px solid #D4E1FF;
+            border-radius: 12px; padding: 16px; margin: 16px 0;
         }
-
-        .info-box strong {
-            display: block;
-            margin-bottom: 8px;
-            color: #0B1C2D;
-        }
-
-        .info-box p {
-            color: #6B7280;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-
-        /* ================================================================
-           12. INDICATOR CHIP — small inline badge
-           ================================================================ */
+        .info-box strong { display: block; margin-bottom: 8px; color: #0B1C2D; }
+        .info-box p { color: #6B7280; font-size: 13px; line-height: 1.5; }
         .indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #F0F4FF;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #1F4FD8;
-            font-weight: 500;
-            margin-bottom: 16px;
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #F0F4FF; padding: 8px 14px; border-radius: 8px;
+            font-size: 13px; color: #1F4FD8; font-weight: 500; margin-bottom: 16px;
         }
-
-        .indicator.ball::before {
-            content: "🔵";
-            font-size: 16px;
-        }
-
+        .indicator.ball::before { content: "🔵"; font-size: 16px; }
 
         /* ================================================================
-           13. CLOUDFLARE TURNSTILE WIDGET
+           16. TURNSTILE
            ================================================================ */
-        .turnstile-container {
-            display: flex;
-            justify-content: center;
-            margin: 20px 0;
-            min-height: 65px;
-        }
-
+        .turnstile-container { display: flex; justify-content: center; margin: 20px 0; min-height: 65px; }
 
         /* ================================================================
-           14. FOOTER
+           17. FOOTER
            ================================================================ */
-        footer {
-            background: #0B1C2D;
-            color: #9CA3AF;
-            padding: 16px;
-            text-align: center;
-            font-size: 11px;
-        }
-
+        footer { background: #0B1C2D; color: #9CA3AF; padding: 16px; text-align: center; font-size: 11px; }
 
         /* ================================================================
-           15. RESPONSIVE — TABLET & ABOVE (>= 768 px)
+           18. RESPONSIVE — TABLET & DESKTOP
            ================================================================ */
         @media (min-width: 768px) {
-            header            { padding: 20px 40px; }
-            .container        { padding: 40px 32px; }
-            h1                { font-size: 28px; }
+            header { padding: 20px 40px; }
+            .container { padding: 40px 32px; }
+            h1 { font-size: 28px; }
             .download-buttons { flex-direction: row; }
         }
 
-
         /* ================================================================
-           16. SAFE AREA — NOTCHED DEVICES (iPhone X+, Dynamic Island)
-           env(safe-area-inset-*) keeps content clear of notch / home bar.
+           19. SAFE AREA — NOTCHED DEVICES
            ================================================================ */
         @supports (padding: max(0px)) {
             header {
-                padding-left:  max(16px, env(safe-area-inset-left));
+                padding-left: max(16px, env(safe-area-inset-left));
                 padding-right: max(16px, env(safe-area-inset-right));
             }
             main {
-                padding-left:  max(16px, env(safe-area-inset-left));
+                padding-left: max(16px, env(safe-area-inset-left));
                 padding-right: max(16px, env(safe-area-inset-right));
             }
         }
 
-
         /* ================================================================
-           17. CAMERA MODAL — full-screen viewfinder
-           z-index 1000 keeps it above all page content including the header.
+           20. CAMERA MODAL
            ================================================================ */
         #camera-modal {
-            display: none; /* shown via .active class added by openCamera() */
-            position: fixed;
-            inset: 0;
-            background: #000;
-            z-index: 1000;
-            flex-direction: column;
+            display: none; position: fixed; inset: 0;
+            background: #000; z-index: 1000; flex-direction: column;
         }
-
-        #camera-modal.active {
-            display: flex;
-        }
-
-        /* Live video feed — covers the full viewport, cropped to fit */
+        #camera-modal.active { display: flex; }
         #camera-video {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            position: absolute; inset: 0;
+            width: 100%; height: 100%; object-fit: cover;
         }
-
-        /*
-            Hidden canvas used for frame capture.
-            capturePhoto() draws the raw video frame here at native resolution.
-            The oval SVG is never composited onto this canvas — the API always
-            receives the complete, unmodified image.
-        */
-        #capture-canvas {
-            display: none;
-        }
-
-
-        /* ================================================================
-           18. OVAL VIGNETTE SVG
-           Layered above the video; pointer-events disabled so taps
-           pass through to the controls beneath.
-           Content generated dynamically by drawOvalOverlay().
-           ================================================================ */
-        #oval-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-        }
-
-
-        /* ================================================================
-           19. OVAL HINT LABEL
-           Short instruction positioned just above the controls bar.
-           ================================================================ */
+        #capture-canvas { display: none; }
+        #oval-overlay { position: absolute; inset: 0; pointer-events: none; }
         #oval-label {
-            position: absolute;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 13px;
-            font-weight: 500;
-            text-align: center;
-            pointer-events: none;
-            white-space: nowrap;
-            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-            letter-spacing: 0.01em;
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 500;
+            text-align: center; pointer-events: none; white-space: nowrap;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
         }
-
-
-        /* ================================================================
-           20. CAMERA CONTROLS BAR
-           Pinned to the bottom of the modal.
-           Layout: [Close]  [Shutter]  [Gallery]
-           ================================================================ */
         #camera-controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            position: absolute; bottom: 0; left: 0; right: 0;
             padding: 20px 32px max(24px, env(safe-area-inset-bottom));
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            /* Gradient blends the controls zone into the video feed */
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.65) 0%, transparent 100%);
+            display: flex; align-items: center; justify-content: space-between;
+            background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%);
         }
-
-        /* ── Close button (✕) — dismiss without capturing ── */
         #btn-close-camera {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.18);
-            border: 2px solid rgba(255, 255, 255, 0.55);
-            color: white;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            margin: 0;
-            padding: 0;
-            min-height: unset;
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.55);
+            color: white; font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; margin: 0; padding: 0; min-height: unset;
         }
-
-        /* ── Shutter button — large white circle, native camera aesthetic ── */
         #btn-capture {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: white;
-            border: 4px solid rgba(255, 255, 255, 0.45);
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
-            cursor: pointer;
-            margin: 0;
-            padding: 0;
-            min-height: unset;
+            width: 72px; height: 72px; border-radius: 50%;
+            background: white; border: 4px solid rgba(255,255,255,0.45);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.25);
+            cursor: pointer; margin: 0; padding: 0; min-height: unset;
             transition: transform 0.1s;
         }
-
-        #btn-capture:active {
-            transform: scale(0.90);
-        }
-
-        /* ── Gallery button — opens the file picker as an alternative ── */
+        #btn-capture:active { transform: scale(0.90); }
         #btn-gallery {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.18);
-            border: 2px solid rgba(255, 255, 255, 0.55);
-            color: white;
-            font-size: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            margin: 0;
-            padding: 0;
-            min-height: unset;
+            width: 48px; height: 48px; border-radius: 10px;
+            background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.55);
+            color: white; font-size: 22px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; margin: 0; padding: 0; min-height: unset;
         }
     </style>
 </head>
 <body>
 
-    <!-- ================================================================
-         HEADER — sticky brand bar
-         ================================================================ -->
+    <!-- HEADER -->
     <header>
         <div class="logo-container">
             <div class="logo-icon">
-                <!-- Abstract logo: one solid circle flanked by two outline ellipses -->
-                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="20" fill="#1F4FD8"/>
-                    <ellipse cx="35" cy="50" rx="25" ry="20" fill="none" stroke="#0B1C2D" stroke-width="3" opacity="0.3"/>
-                    <ellipse cx="65" cy="50" rx="25" ry="20" fill="none" stroke="#0B1C2D" stroke-width="3" opacity="0.3"/>
-                </svg>
+                <img src="/assets/logo.webp" alt="SpudSizer">
             </div>
             <div>
                 <div class="logo-text">SPUDSIZER</div>
@@ -617,339 +376,321 @@
         </div>
     </header>
 
-
-    <!-- ================================================================
-         MAIN — single-page, step-based flow
-         ================================================================ -->
+    <!-- MAIN -->
     <main>
         <div class="container">
 
-            <!-- ── STEP 1: Email entry ─────────────────────────────────── -->
-            <!--
-                The user's email is their unique identifier across sessions.
-                Cloudflare Turnstile silently checks for bot activity and
-                calls onTurnstileSuccess() once the visitor is verified.
-                The Continue button is disabled until that callback fires.
-            -->
+            <!-- STEP 1: Email -->
             <div id="step-email" class="step active">
-                <h1>Welcome</h1>
-                <p class="subtitle">Enter your email to begin measuring</p>
-
-                <input
-                    type="email"
-                    id="email-input"
-                    placeholder="your@email.com"
-                    autocomplete="email"
-                    required
-                >
-
-                <div class="turnstile-container">
-                    <div class="cf-turnstile"
-                         data-sitekey="0x4AAAAAACNQs8l84fgZFlp1"
-                         data-callback="onTurnstileSuccess">
-                    </div>
+                <div class="progress">
+                    <div class="progress-step active"></div>
+                    <div class="progress-step"></div>
+                    <div class="progress-step"></div>
+                    <span class="progress-label">Step 1 of 3</span>
                 </div>
 
-                <button class="primary" id="email-continue-btn" onclick="checkEmail()" disabled>
-                    Continue
-                </button>
+                <h1>Potato Yield Analysis</h1>
+                <p class="subtitle">Take a photo of a harvested sample and receive a PDF with potato sizing, yield forecast and revenue estimate.</p>
 
+                <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email" required>
+
+                <div class="turnstile-container">
+                    <div class="cf-turnstile" data-sitekey="0x4AAAAAACNQs8l84fgZFlp1" data-callback="onTurnstileSuccess"></div>
+                </div>
+
+                <button class="primary" id="email-continue-btn" onclick="checkEmail()" disabled>Continue</button>
                 <div id="email-status"></div>
             </div>
 
+            <!-- STEP 2: Photo Capture -->
+            <div id="step-photo" class="step">
+                <div class="progress">
+                    <div class="progress-step done"></div>
+                    <div class="progress-step active"></div>
+                    <div class="progress-step"></div>
+                    <span class="progress-label">Step 2 of 3</span>
+                </div>
 
-            <!-- ── STEP 2: Photo capture ───────────────────────────────── -->
-            <!--
-                Two entry points for acquiring a photo:
-
-                A) "Open Camera" — launches the custom full-screen viewfinder
-                   with the oval distortion-guide overlay.
-
-                B) Gallery picker — lets the user choose an existing photo
-                   from their device. Useful when re-running the app after
-                   a crash, using a photo taken separately, or on devices
-                   where the camera API is unavailable.
-
-                accept="image/*" without capture= allows both routes on
-                mobile: the OS sheet lets the user pick camera or gallery.
-            -->
-            <div id="step-upload" class="step">
                 <h1>Take Photo</h1>
-                <p class="subtitle" id="user-email-display"></p>
+                <p class="subtitle">Capture or select a photo of your potato sample</p>
 
                 <span class="indicator ball">Include the blue reference ball</span>
 
                 <div class="info-box">
                     <strong>📸 How to take a good photo</strong>
-                    <p>
-                        Tap <strong>Open Camera</strong> and position the potatoes
-                        inside the oval guide on screen. The oval marks the centre
-                        of the lens where distortion is minimal — keeping potatoes
-                        inside it ensures accurate size measurements.
-                    </p>
+                    <p>Tap <strong>Open Camera</strong> and position the potatoes inside the oval guide. The oval marks where lens distortion is minimal, ensuring accurate measurements.</p>
                 </div>
 
-                <!-- Primary: custom viewfinder with oval guide -->
-                <button class="primary" onclick="openCamera()">
-                    📷 Open Camera
-                </button>
+                <button class="primary" onclick="openCamera()">📷 Open Camera</button>
 
-                <!-- Secondary: native gallery / file picker -->
                 <div class="file-upload" onclick="document.getElementById('photo-input').click()">
-                    <input
-                        type="file"
-                        id="photo-input"
-                        accept="image/*"
-                        onchange="handleFileSelect(this)"
-                    >
+                    <input type="file" id="photo-input" accept="image/*" onchange="handleFileSelect(this)">
                     <div class="camera-icon"></div>
                     <div class="file-upload-text">Or choose from gallery</div>
                     <div class="file-upload-hint">Select a photo already on your device</div>
                 </div>
 
-                <!-- Populated after camera capture or gallery selection -->
+                <!-- Image Preview -->
+                <div id="image-preview" class="image-preview">
+                    <img id="preview-img" alt="Selected photo">
+                </div>
+
                 <p id="file-name"></p>
 
-                <button class="primary" id="upload-button" onclick="uploadPhoto()" disabled>
-                    Process Photo
-                </button>
-
-                <button class="secondary" onclick="resetToEmail()">
-                    Change Email
-                </button>
-
-                <div id="upload-status"></div>
+                <button class="primary" id="photo-continue-btn" onclick="showStep('step-details')" disabled>Continue</button>
+                <button class="secondary" onclick="retakePhoto()">Retake Photo</button>
+                <button class="secondary" onclick="resetToEmail()">Change Email</button>
+                <div id="photo-status"></div>
             </div>
 
+            <!-- STEP 3: Sample Details -->
+            <div id="step-details" class="step">
+                <div class="progress">
+                    <div class="progress-step done"></div>
+                    <div class="progress-step done"></div>
+                    <div class="progress-step active"></div>
+                    <span class="progress-label">Step 3 of 3</span>
+                </div>
 
-            <!-- ── STEP 3: Processing ──────────────────────────────────── -->
+                <h1>Sample Details</h1>
+                <p class="subtitle">Enter the details for your harvested sample</p>
+
+                <!-- Variety -->
+                <label class="field-label" for="variety">Variety</label>
+                <input type="text" id="variety" placeholder="Enter potato variety" autocomplete="off" required>
+
+                <!-- Sample Length -->
+                <label class="field-label" for="sample-length">Harvested Sample (meters)</label>
+                <input type="number" id="sample-length" placeholder="e.g. 3" step="0.1" inputmode="decimal" required>
+
+                <!-- Growth -->
+                <label class="field-label" for="growth">Growth (kg/ha/day)</label>
+                <input type="number" id="growth" placeholder="800" value="800" step="1" inputmode="numeric" required>
+                <span class="field-helper">Used for yield projection</span>
+
+                <!-- Potato Shape -->
+                <label class="field-label">Potato Shape</label>
+                <div class="shape-grid">
+                    <div class="shape-card" onclick="selectShape(this, 'round')">
+                        <span class="shape-icon">⚫</span>
+                        <span class="shape-label">Round</span>
+                    </div>
+                    <div class="shape-card" onclick="selectShape(this, 'oval')">
+                        <span class="shape-icon">🥚</span>
+                        <span class="shape-label">Oval</span>
+                    </div>
+                    <div class="shape-card" onclick="selectShape(this, 'long')">
+                        <span class="shape-icon">🥖</span>
+                        <span class="shape-label">Long</span>
+                    </div>
+                </div>
+
+                <!-- Market Prices Accordion -->
+                <div class="accordion" id="prices-accordion">
+                    <div class="accordion-header" onclick="toggleAccordion()">
+                        <span>Market Prices (€/100kg)</span>
+                        <span class="accordion-arrow">▼</span>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="price-row"><span class="price-label">25–35</span><input type="number" id="price-25-35" value="5.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">35–40</span><input type="number" id="price-35-40" value="8.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">40–45</span><input type="number" id="price-40-45" value="12.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">45–50</span><input type="number" id="price-45-50" value="15.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">50–55</span><input type="number" id="price-50-55" value="18.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">55–60</span><input type="number" id="price-55-60" value="14.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">60+</span><input type="number" id="price-60-plus" value="10.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                    </div>
+                </div>
+
+                <!-- Remark -->
+                <label class="field-label" for="remark">Remark (Optional)</label>
+                <textarea id="remark" placeholder="Field name, plot number or notes"></textarea>
+
+                <button class="primary" onclick="submitAnalysis()">Analyze Sample</button>
+                <button class="secondary" onclick="showStep('step-photo')">← Back to Photo</button>
+                <div id="details-status"></div>
+            </div>
+
+            <!-- STEP 4: Processing -->
             <div id="step-processing" class="step">
                 <h1>Processing</h1>
-                <p class="subtitle">Analyzing your photo…</p>
-
+                <p class="subtitle">Analyzing your sample…</p>
                 <div class="loader"></div>
-
-                <div class="status info">
-                    <strong>⏱️ Please wait</strong><br>
-                    Analysis typically takes a few seconds.
-                </div>
+                <div class="status info"><strong>⏱️ Please wait</strong><br>Analysis typically takes a few seconds.</div>
             </div>
 
-
-            <!-- ── STEP 4: Results ─────────────────────────────────────── -->
+            <!-- STEP 5: Results -->
             <div id="step-results" class="step">
-                <h1>Complete</h1>
+                <h1>Analysis Complete</h1>
                 <p class="subtitle">Your measurement results are ready</p>
-
-                <div class="status success">
-                    ✓ Analysis complete
-                </div>
-
+                <div class="status success">✓ Analysis complete</div>
                 <div class="download-buttons">
-                    <button class="primary" onclick="downloadFile('pdf')">
-                        📄 Download PDF
-                    </button>
-                    <button class="primary" onclick="downloadFile('csv')">
-                        📊 Download CSV
-                    </button>
+                    <button class="primary" onclick="downloadFile('pdf')">📄 Download PDF</button>
+                    <button class="primary" onclick="downloadFile('csv')">📊 Download CSV</button>
                 </div>
-
-                <button class="secondary" onclick="resetToUpload()">
-                    Measure Another Batch
-                </button>
+                <button class="secondary" onclick="resetToPhoto()">Measure Another Batch</button>
             </div>
 
         </div>
     </main>
 
+    <!-- FOOTER -->
+    <footer><p>© 2025 SpudSizer</p></footer>
 
-    <!-- ================================================================
-         FOOTER
-         ================================================================ -->
-    <footer>
-        <p>© 2024 SpudSizer</p>
-    </footer>
-
-
-    <!-- ================================================================
-         CAMERA MODAL — full-screen viewfinder with oval guide
-         ================================================================ -->
+    <!-- CAMERA MODAL -->
     <div id="camera-modal">
-
-        <!-- Live rear-camera feed — covers the full viewport -->
         <video id="camera-video" autoplay playsinline muted></video>
-
-        <!--
-            Hidden capture canvas.
-            capturePhoto() writes the raw video frame here at native resolution.
-            The oval SVG is NOT composited onto this canvas — the API always
-            receives the complete, unmodified camera image.
-        -->
         <canvas id="capture-canvas"></canvas>
-
-        <!--
-            Oval vignette SVG.
-            Rendered dynamically by drawOvalOverlay() so dimensions always
-            match the current viewport and device orientation.
-            pointer-events: none ensures taps reach the controls beneath.
-        -->
         <svg id="oval-overlay" xmlns="http://www.w3.org/2000/svg"></svg>
-
-        <!-- Instruction label above the controls bar -->
         <div id="oval-label">Keep all potatoes inside the oval</div>
-
-        <!-- Controls: [Close]  [Shutter]  [Gallery] -->
         <div id="camera-controls">
-
-            <button id="btn-close-camera" onclick="closeCamera()" aria-label="Close camera">
-                ✕
-            </button>
-
+            <button id="btn-close-camera" onclick="closeCamera()" aria-label="Close camera">✕</button>
             <button id="btn-capture" onclick="capturePhoto()" aria-label="Take photo"></button>
-
-            <button id="btn-gallery"
-                    onclick="document.getElementById('photo-input').click()"
-                    aria-label="Choose from gallery">
-                🖼
-            </button>
-
+            <button id="btn-gallery" onclick="document.getElementById('photo-input').click()" aria-label="Gallery">🖼</button>
         </div>
     </div>
 
-
-    <!-- ================================================================
-         JAVASCRIPT
-         ================================================================ -->
+    <!-- JAVASCRIPT -->
     <script>
-        /* ----------------------------------------------------------------
-           CONFIGURATION
-           Update API_URL to point to your deployed backend instance.
-           ---------------------------------------------------------------- */
+        /* ── CONFIGURATION ── */
         const API_URL = 'https://api.spudsizer.nl';
 
-
-        /* ----------------------------------------------------------------
-           APPLICATION STATE
-           All mutable state is held here; no hidden form fields or cookies.
-           ---------------------------------------------------------------- */
-        let userEmail      = '';     // Email entered at step 1; embedded in filenames and sent with uploads for backend traceability
-        let currentJobId   = null;   // Job ID returned by the API after a successful upload
-        let selectedFile   = null;   // File object queued for upload
-        let turnstileToken = null;   // Cloudflare Turnstile verification token
-        let cameraStream   = null;   // Active MediaStream from getUserMedia()
-
+        /* ── STATE ── */
+        let userEmail = '';
+        let currentJobId = null;
+        let selectedFile = null;
+        let selectedShape = null;
+        let turnstileToken = null;
+        let cameraStream = null;
 
         /* ================================================================
-           STEP 1 — EMAIL & BOT PROTECTION
+           STEP 1: EMAIL
            ================================================================ */
-
-        /**
-         * Turnstile callback — fires automatically when the visitor passes
-         * the bot-detection challenge. Enables the Continue button.
-         *
-         * @param {string} token - Short-lived verification token issued by Turnstile
-         */
         function onTurnstileSuccess(token) {
             turnstileToken = token;
             document.getElementById('email-continue-btn').disabled = false;
         }
 
-        /**
-         * Validates the email field and advances to the photo step.
-         *
-         * Access control is handled entirely by Cloudflare Access — only
-         * authorised email addresses can reach this page at all. The app
-         * therefore does not need to re-verify the address against the API.
-         *
-         * The email is stored in state so it can be embedded in filenames
-         * and sent with the upload form, giving the backend a traceable
-         * link between every photo and the user who submitted it.
-         *
-         * On valid input   → stores the email and advances to the photo step.
-         * On invalid input → shows an inline error and stays on step 1.
-         */
         function checkEmail() {
             const email = document.getElementById('email-input').value.trim();
-
             if (!email || !email.includes('@')) {
                 showStatus('email-status', 'error', 'Please enter a valid email address.');
                 return;
             }
-
             if (!turnstileToken) {
                 showStatus('email-status', 'error', 'Please complete the security check.');
                 return;
             }
-
             userEmail = email;
-
             document.getElementById('user-email-display').textContent = email;
-            showStep('step-upload');
+            showStep('step-photo');
         }
 
-
         /* ================================================================
-           STEP 2 — PHOTO SELECTION
+           STEP 2: PHOTO
            ================================================================ */
-
-        /**
-         * Handles a file chosen via the gallery picker.
-         * Validates the file size, updates the confirmation label,
-         * and arms the Process Photo button.
-         *
-         * Also closes the camera modal if the gallery was opened from
-         * the Gallery button inside the viewfinder.
-         *
-         * @param {HTMLInputElement} input - The hidden file input element
-         */
         function handleFileSelect(input) {
             if (!input.files || !input.files[0]) return;
-
-            const file     = input.files[0];
-            const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+            const file = input.files[0];
+            const MAX_SIZE = 10 * 1024 * 1024;
 
             if (file.size > MAX_SIZE) {
-                showStatus('upload-status', 'error', 'File is too large (maximum 10 MB).');
-                document.getElementById('file-name').textContent = '';
-                document.getElementById('upload-button').disabled = true;
-                selectedFile = null;
+                showStatus('photo-status', 'error', 'File is too large (maximum 10 MB).');
+                clearPhoto();
                 return;
             }
 
             selectedFile = file;
             document.getElementById('file-name').textContent = '✓ ' + file.name;
-            document.getElementById('upload-button').disabled = false;
+            document.getElementById('photo-continue-btn').disabled = false;
 
-            // Return to the upload step if the gallery was opened from within the camera modal
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('image-preview');
+                document.getElementById('preview-img').src = e.target.result;
+                preview.classList.add('active');
+            };
+            reader.readAsDataURL(file);
+
             if (cameraStream) closeCamera();
         }
 
+        function retakePhoto() {
+            clearPhoto();
+            document.getElementById('photo-input').value = '';
+        }
+
+        function clearPhoto() {
+            selectedFile = null;
+            document.getElementById('file-name').textContent = '';
+            document.getElementById('photo-continue-btn').disabled = true;
+            document.getElementById('image-preview').classList.remove('active');
+        }
 
         /* ================================================================
-           STEP 3 — UPLOAD & PROCESSING
+           STEP 3: SAMPLE DETAILS
            ================================================================ */
+        function selectShape(el, shape) {
+            document.querySelectorAll('.shape-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedShape = shape;
+        }
 
-        /**
-         * Submits the selected photo to the API and transitions to the
-         * appropriate next step based on the response.
-         *
-         * HTTP 200 + status "completed" → show results
-         * HTTP 429                      → daily limit reached, return to upload
-         * Other errors                  → alert + return to upload
-         */
-        async function uploadPhoto() {
-            if (!selectedFile) return;
+        function toggleAccordion() {
+            document.getElementById('prices-accordion').classList.toggle('open');
+        }
+
+        function collectPrices() {
+            return {
+                "25-35": parseFloat(document.getElementById('price-25-35').value) || 0,
+                "35-40": parseFloat(document.getElementById('price-35-40').value) || 0,
+                "40-45": parseFloat(document.getElementById('price-40-45').value) || 0,
+                "45-50": parseFloat(document.getElementById('price-45-50').value) || 0,
+                "50-55": parseFloat(document.getElementById('price-50-55').value) || 0,
+                "55-60": parseFloat(document.getElementById('price-55-60').value) || 0,
+                "60+":   parseFloat(document.getElementById('price-60-plus').value) || 0,
+            };
+        }
+
+        /* ================================================================
+           SUBMIT — Build JSON payload + image
+           ================================================================ */
+        async function submitAnalysis() {
+            const variety = document.getElementById('variety').value.trim();
+            const sampleLength = document.getElementById('sample-length').value;
+            const growth = document.getElementById('growth').value;
+            const remark = document.getElementById('remark').value.trim();
+
+            // Validate
+            if (!variety) { showStatus('details-status', 'error', 'Please enter the potato variety.'); return; }
+            if (!sampleLength) { showStatus('details-status', 'error', 'Please enter the sample length.'); return; }
+            if (!growth) { showStatus('details-status', 'error', 'Please enter the growth rate.'); return; }
+            if (!selectedShape) { showStatus('details-status', 'error', 'Please select a potato shape.'); return; }
+            if (!selectedFile) { showStatus('details-status', 'error', 'No photo selected. Go back and take a photo.'); return; }
 
             showStep('step-processing');
 
+            // Build FormData with JSON metadata + image
+            const metadata = {
+                email: userEmail,
+                variety: variety,
+                sampleLengthMeters: parseFloat(sampleLength),
+                growthKgHaDay: parseFloat(growth),
+                shape: selectedShape,
+                prices: collectPrices(),
+                remark: remark || null
+            };
+
             const formData = new FormData();
             formData.append('email', userEmail);
+            formData.append('metadata', JSON.stringify(metadata));
             formData.append('photo', selectedFile);
 
             try {
                 const response = await fetch(`${API_URL}/api/upload`, {
                     method: 'POST',
-                    body:   formData
+                    body: formData
                 });
 
                 const data = await response.json();
@@ -958,120 +699,72 @@
                     currentJobId = data.job_id;
                     showStep('step-results');
                 } else if (response.status === 429) {
-                    alert('Daily upload limit reached (100 uploads). Please try again tomorrow.');
-                    showStep('step-upload');
+                    alert('Daily limit reached (100 uploads). Try again tomorrow.');
+                    showStep('step-details');
                 } else {
-                    alert('Upload error: ' + (data.detail || 'Unknown error'));
-                    showStep('step-upload');
+                    alert('Error: ' + (data.detail || 'Unknown error'));
+                    showStep('step-details');
                 }
             } catch (err) {
                 alert('Connection error: ' + err.message);
-                showStep('step-upload');
+                showStep('step-details');
             }
         }
 
-
         /* ================================================================
-           STEP 4 — RESULTS
+           RESULTS
            ================================================================ */
-
-        /**
-         * Opens the API download endpoint for the completed job in a new tab.
-         *
-         * @param {'pdf'|'csv'} type - Report format requested
-         */
         function downloadFile(type) {
             window.open(`${API_URL}/api/download/${currentJobId}/${type}`, '_blank');
         }
 
-
         /* ================================================================
-           NAVIGATION HELPERS
+           NAVIGATION
            ================================================================ */
-
-        /**
-         * Switches the visible step and scrolls to the top of the page.
-         * All other steps are hidden simultaneously to keep the DOM clean.
-         *
-         * @param {string} stepId - The id of the target .step element
-         */
         function showStep(stepId) {
             document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
             document.getElementById(stepId).classList.add('active');
             window.scrollTo(0, 0);
         }
 
-        /**
-         * Renders an inline status message inside an existing container.
-         *
-         * @param {string} elementId               - ID of the target element
-         * @param {'info'|'success'|'error'} type  - Visual style variant
-         * @param {string} message                 - Human-readable message
-         */
         function showStatus(elementId, type, message) {
-            const el         = document.getElementById(elementId);
-            el.className     = `status ${type}`;
-            el.textContent   = message;
+            const el = document.getElementById(elementId);
+            el.className = `status ${type}`;
+            el.textContent = message;
             el.style.display = 'block';
         }
 
-        /**
-         * Resets the app back to Step 1 (email entry).
-         * Clears all state and re-arms the Turnstile widget for a fresh challenge.
-         */
         function resetToEmail() {
-            userEmail      = '';
-            selectedFile   = null;
-            turnstileToken = null;
-
-            document.getElementById('email-input').value          = '';
-            document.getElementById('file-name').textContent      = '';
+            userEmail = ''; selectedFile = null; selectedShape = null; turnstileToken = null;
+            document.getElementById('email-input').value = '';
+            document.getElementById('file-name').textContent = '';
             document.getElementById('email-continue-btn').disabled = true;
-
+            document.getElementById('image-preview').classList.remove('active');
             if (window.turnstile) window.turnstile.reset();
-
             showStep('step-email');
         }
 
-        /**
-         * Returns to Step 2 (photo capture) after completing a session.
-         * The user's email is retained so they can measure another batch
-         * without re-entering it.
-         */
-        function resetToUpload() {
-            selectedFile = null;
-            document.getElementById('file-name').textContent = '';
-            document.getElementById('upload-button').disabled = true;
-            showStep('step-upload');
+        function resetToPhoto() {
+            clearPhoto();
+            selectedShape = null;
+            document.querySelectorAll('.shape-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('variety').value = '';
+            document.getElementById('sample-length').value = '';
+            document.getElementById('growth').value = '800';
+            document.getElementById('remark').value = '';
+            document.getElementById('photo-input').value = '';
+            showStep('step-photo');
         }
 
-
         /* ================================================================
-           CAMERA MODAL — open / capture / close
+           CAMERA MODAL
            ================================================================ */
-
-        /**
-         * Opens the full-screen camera viewfinder.
-         *
-         * Camera constraints:
-         *   facingMode "environment" — requests the rear-facing lens.
-         *   Resolution ideal 4096x3072 — the browser/OS picks the closest
-         *   supported mode, giving the backend maximum image detail.
-         *
-         * The oval overlay is drawn once the video stream dimensions are
-         * known (loadedmetadata) and redrawn on every resize / rotation.
-         */
         async function openCamera() {
             const modal = document.getElementById('camera-modal');
             const video = document.getElementById('camera-video');
-
             try {
                 cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width:      { ideal: 4096 },
-                        height:     { ideal: 3072 }
-                    },
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } },
                     audio: false
                 });
                 video.srcObject = cameraStream;
@@ -1079,161 +772,78 @@
                 alert('Camera access denied: ' + err.message);
                 return;
             }
-
             modal.classList.add('active');
-
-            // Draw the oval once video dimensions are available
             video.addEventListener('loadedmetadata', drawOvalOverlay, { once: true });
-
-            // Keep the oval correctly sized on device rotation
             window.addEventListener('resize', drawOvalOverlay);
         }
 
-        /**
-         * Stops all active camera tracks and dismisses the viewfinder modal.
-         * Cleans up the resize listener added by openCamera().
-         */
         function closeCamera() {
             document.getElementById('camera-modal').classList.remove('active');
-
             if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream.getTracks().forEach(t => t.stop());
                 cameraStream = null;
             }
-
             window.removeEventListener('resize', drawOvalOverlay);
         }
 
-        /**
-         * Captures a single frame from the live video stream.
-         *
-         * Implementation notes:
-         *   • The canvas is sized to the camera's native pixel dimensions —
-         *     not the viewport — so the full sensor resolution is preserved.
-         *   • Only the raw video frame is drawn onto the canvas; the SVG oval
-         *     overlay is never composited, so the image sent to the API is
-         *     complete and unmodified.
-         *   • Output quality is 0.95 JPEG — high fidelity with reasonable
-         *     file size for mobile data connections.
-         *   • A timestamp is embedded in the filename for traceability.
-         */
         function capturePhoto() {
-            const video  = document.getElementById('camera-video');
+            const video = document.getElementById('camera-video');
             const canvas = document.getElementById('capture-canvas');
-
-            // Use the camera's native resolution, not the viewport size
-            canvas.width  = video.videoWidth;
+            canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-
-            // Draw the raw frame — the SVG overlay is not part of this operation
             canvas.getContext('2d').drawImage(video, 0, 0);
 
             canvas.toBlob((blob) => {
-                if (!blob) {
-                    alert('Photo capture failed — please try again.');
-                    return;
-                }
-
-                // Build a traceable filename: email (sanitised) + UTC timestamp.
-                // Replacing @ and . keeps the name safe on all file systems.
-                // Example: geert_vanmaldegem_outlook_com_2024-11-05T14-32-07.jpg
+                if (!blob) { alert('Photo capture failed.'); return; }
                 const safeEmail = userEmail.replace(/[@.]/g, '_');
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                const filename  = `${safeEmail}_${timestamp}.jpg`;
+                const filename = `${safeEmail}_${timestamp}.jpg`;
 
-                // Wrap as a File to slot into the existing upload flow
                 selectedFile = new File([blob], filename, { type: 'image/jpeg' });
                 document.getElementById('file-name').textContent = '✓ ' + filename;
-                document.getElementById('upload-button').disabled = false;
+                document.getElementById('photo-continue-btn').disabled = false;
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('preview-img').src = e.target.result;
+                    document.getElementById('image-preview').classList.add('active');
+                };
+                reader.readAsDataURL(selectedFile);
 
                 closeCamera();
-
             }, 'image/jpeg', 0.95);
         }
-
 
         /* ================================================================
            OVAL OVERLAY
            ================================================================ */
-
-        /**
-         * Renders the oval distortion-guide vignette onto the #oval-overlay SVG.
-         *
-         * Technique — SVG inverted mask:
-         *   1. A <mask> is defined with a white full-screen rectangle (show all)
-         *      and a black ellipse punched through the centre (hide = clear window).
-         *   2. A semi-transparent dark <rect> is painted through that mask,
-         *      producing a darkened surround with a clear oval in the middle.
-         *   3. A dashed white <ellipse> stroke traces the oval boundary so it
-         *      remains visible against any background colour.
-         *
-         * Oval proportions (empirically tuned for typical smartphone lenses):
-         *   Width  = 72 % of viewport   (rx = 36 %)
-         *   Height = 80 % of viewport   (ry = 40 %)
-         *
-         * These dimensions keep the clear zone within the central region of
-         * the lens where barrel / pincushion distortion is small enough to
-         * have no measurable impact on potato size calculations.
-         *
-         * Called by: openCamera(), loadedmetadata event, window resize event.
-         */
         function drawOvalOverlay() {
             const svg = document.getElementById('oval-overlay');
-            const W   = window.innerWidth;
-            const H   = window.innerHeight;
+            const W = window.innerWidth;
+            const H = window.innerHeight;
+            const cx = W / 2, cy = H / 2;
+            const rx = W * 0.36, ry = H * 0.40;
 
-            const cx = W / 2;
-            const cy = H / 2;
-            const rx = W * 0.36;   // horizontal radius — 72 % of viewport width
-            const ry = H * 0.40;   // vertical radius   — 80 % of viewport height
-
-            // Sync the SVG coordinate space to the live viewport dimensions
             svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-            svg.setAttribute('width',  W);
+            svg.setAttribute('width', W);
             svg.setAttribute('height', H);
 
             svg.innerHTML = `
                 <defs>
-                    <!--
-                        oval-mask
-                        White = dark vignette rect is visible (outside the oval).
-                        Black = dark vignette rect is hidden  (clear oval window).
-                    -->
                     <mask id="oval-mask">
                         <rect width="${W}" height="${H}" fill="white"/>
                         <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="black"/>
                     </mask>
                 </defs>
-
-                <!-- Semi-transparent dark vignette — only visible outside the oval -->
-                <rect
-                    width="${W}"
-                    height="${H}"
-                    fill="rgba(0, 0, 0, 0.50)"
-                    mask="url(#oval-mask)"
-                />
-
-                <!-- Dashed white border — marks the oval boundary clearly -->
-                <ellipse
-                    cx="${cx}" cy="${cy}"
-                    rx="${rx}" ry="${ry}"
-                    fill="none"
-                    stroke="rgba(255, 255, 255, 0.80)"
-                    stroke-width="2"
-                    stroke-dasharray="14 7"
-                />
+                <rect width="${W}" height="${H}" fill="rgba(0,0,0,0.50)" mask="url(#oval-mask)"/>
+                <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none"
+                    stroke="rgba(255,255,255,0.80)" stroke-width="2" stroke-dasharray="14 7"/>
             `;
         }
 
-        /*
-            Pre-render the oval on page load as a defensive measure.
-            Handles the edge case where the modal might be opened immediately
-            (e.g. deep-link or automated test) before any video metadata arrives.
-        */
-        window.addEventListener('load',   drawOvalOverlay);
+        window.addEventListener('load', drawOvalOverlay);
         window.addEventListener('resize', drawOvalOverlay);
-
     </script>
-
 </body>
 </html>
