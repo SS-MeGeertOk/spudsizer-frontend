@@ -697,24 +697,30 @@
 
             showStep('step-processing');
 
-            // Build FormData with JSON metadata + image
-            const metadata = {
-                email: userEmail,
+            // Map frontend shape names to backend depth_ratio names
+            const shapeToDepthRatio = {
+                'round': 'round',
+                'oval': 'oval',
+                'long': 'flat'
+            };
+
+            // Build settings JSON matching backend server.py format
+            const settings = {
                 variety: variety,
-                sampleLengthMeters: parseFloat(sampleLength),
-                growthKgHaDay: parseFloat(growth),
-                shape: selectedShape,
+                sample_length: parseFloat(sampleLength),
+                growth_rate: parseFloat(growth),
+                depth_ratio: shapeToDepthRatio[selectedShape] || 'oval',
                 prices: collectPrices(),
-                remark: remark || null
+                remarks: remark || ""
             };
 
             const formData = new FormData();
             formData.append('email', userEmail);
-            formData.append('metadata', JSON.stringify(metadata));
+            formData.append('settings', JSON.stringify(settings));
             formData.append('photo', selectedFile);
 
             try {
-                const response = await fetch(`${API_URL}/api/upload`, {
+                const response = await fetch(`${API_URL}/api/process`, {
                     method: 'POST',
                     body: formData
                 });
