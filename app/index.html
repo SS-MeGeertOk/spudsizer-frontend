@@ -599,7 +599,10 @@
                 return;
             }
             userEmail = email;
-            document.getElementById('user-email-display').textContent = email;
+
+            const emailDisplay = document.getElementById('user-email-display');
+            if (emailDisplay) emailDisplay.textContent = email;
+
             showStep('step-photo');
         }
 
