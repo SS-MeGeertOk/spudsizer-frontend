@@ -199,13 +199,7 @@
             border-color: #1F4FD8; background: #F0F4FF;
             box-shadow: 0 0 0 3px rgba(31,79,216,0.15);
         }
-        .shape-icon {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 8px;
-            display: block;
-            object-fit: contain;
-        }
+        .shape-icon { font-size: 40px; margin-bottom: 8px; display: block; }
         .shape-label { font-size: 13px; font-weight: 600; color: #0B1C2D; }
 
         /* ================================================================
@@ -492,15 +486,15 @@
                 <label class="field-label">Potato Shape</label>
                 <div class="shape-grid">
                     <div class="shape-card" onclick="selectShape(this, 'round')">
-                        <img class="shape-icon" src="/assets/PotatoCutRound.webp" alt="Round">
+                        <span class="shape-icon">⚫</span>
                         <span class="shape-label">Round</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'oval')">
-                        <img class="shape-icon" src="/assets/PotatoCutOval.webp" alt="Oval">
+                        <span class="shape-icon">🥚</span>
                         <span class="shape-label">Oval</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'long')">
-                        <img class="shape-icon" src="/assets/PotatoCutLong.webp" alt="Long">
+                        <span class="shape-icon">🥖</span>
                         <span class="shape-label">Long</span>
                     </div>
                 </div>
@@ -615,10 +609,7 @@
                 return;
             }
             userEmail = email;
-
-            const emailDisplay = document.getElementById('user-email-display');
-            if (emailDisplay) emailDisplay.textContent = email;
-
+            document.getElementById('user-email-display').textContent = email;
             showStep('step-photo');
         }
 
