@@ -199,7 +199,13 @@
             border-color: #1F4FD8; background: #F0F4FF;
             box-shadow: 0 0 0 3px rgba(31,79,216,0.15);
         }
-        .shape-icon { font-size: 40px; margin-bottom: 8px; display: block; }
+        .shape-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 8px;
+            display: block;
+            object-fit: contain;
+        }
         .shape-label { font-size: 13px; font-weight: 600; color: #0B1C2D; }
 
         /* ================================================================
@@ -486,43 +492,33 @@
                 <label class="field-label">Potato Shape</label>
                 <div class="shape-grid">
                     <div class="shape-card" onclick="selectShape(this, 'round')">
-                        <span class="shape-icon">⚫</span>
+                        <img class="shape-icon" src="/assets/PotatoCutRound.webp" alt="Round">
                         <span class="shape-label">Round</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'oval')">
-                        <span class="shape-icon">🥚</span>
+                        <img class="shape-icon" src="/assets/PotatoCutOval.webp" alt="Oval">
                         <span class="shape-label">Oval</span>
                     </div>
                     <div class="shape-card" onclick="selectShape(this, 'long')">
-                        <span class="shape-icon">🥖</span>
+                        <img class="shape-icon" src="/assets/PotatoCutLong.webp" alt="Long">
                         <span class="shape-label">Long</span>
                     </div>
                 </div>
 
                 <!-- Market Prices Accordion -->
                 <div class="accordion" id="prices-accordion">
-                    <div class="accordion-header" onclick="toggleAccordion('prices-accordion')">
+                    <div class="accordion-header" onclick="toggleAccordion()">
                         <span>Market Prices (€/100kg)</span>
                         <span class="accordion-arrow">▼</span>
                     </div>
                     <div class="accordion-body">
-                        <div class="price-row"><span class="price-label">0–30</span><input type="number" id="price-0-30" value="5.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
-                        <div class="price-row"><span class="price-label">30–50</span><input type="number" id="price-30-50" value="30.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
-                        <div class="price-row"><span class="price-label">50–55</span><input type="number" id="price-50-55" value="20.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
-                        <div class="price-row"><span class="price-label">55–60</span><input type="number" id="price-55-60" value="15.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
-                        <div class="price-row"><span class="price-label">60+</span><input type="number" id="price-60-plus" value="8.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
-                    </div>
-                </div>
-
-                <!-- Paid Sizeband Accordion -->
-                <div class="accordion" id="sizeband-accordion">
-                    <div class="accordion-header" onclick="toggleAccordion('sizeband-accordion')">
-                        <span>Paid Sizeband</span>
-                        <span class="accordion-arrow">▼</span>
-                    </div>
-                    <div class="accordion-body">
-                        <div class="price-row"><span class="price-label">Lower size</span><input type="number" id="sizeband-lower" value="35" step="1" inputmode="numeric"><span class="price-unit">mm</span></div>
-                        <div class="price-row"><span class="price-label">Upper size</span><input type="number" id="sizeband-upper" value="55" step="1" inputmode="numeric"><span class="price-unit">mm</span></div>
+                        <div class="price-row"><span class="price-label">25–35</span><input type="number" id="price-25-35" value="5.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">35–40</span><input type="number" id="price-35-40" value="8.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">40–45</span><input type="number" id="price-40-45" value="12.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">45–50</span><input type="number" id="price-45-50" value="15.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">50–55</span><input type="number" id="price-50-55" value="18.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">55–60</span><input type="number" id="price-55-60" value="14.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
+                        <div class="price-row"><span class="price-label">60+</span><input type="number" id="price-60-plus" value="10.00" step="0.01" inputmode="decimal"><span class="price-unit">€/100kg</span></div>
                     </div>
                 </div>
 
@@ -609,7 +605,10 @@
                 return;
             }
             userEmail = email;
-            document.getElementById('user-email-display').textContent = email;
+
+            const emailDisplay = document.getElementById('user-email-display');
+            if (emailDisplay) emailDisplay.textContent = email;
+
             showStep('step-photo');
         }
 
@@ -698,24 +697,30 @@
 
             showStep('step-processing');
 
-            // Build FormData with JSON metadata + image
-            const metadata = {
-                email: userEmail,
+            // Map frontend shape names to backend depth_ratio names
+            const shapeToDepthRatio = {
+                'round': 'round',
+                'oval': 'oval',
+                'long': 'flat'
+            };
+
+            // Build settings JSON matching backend server.py format
+            const settings = {
                 variety: variety,
-                sampleLengthMeters: parseFloat(sampleLength),
-                growthKgHaDay: parseFloat(growth),
-                shape: selectedShape,
+                sample_length: parseFloat(sampleLength),
+                growth_rate: parseFloat(growth),
+                depth_ratio: shapeToDepthRatio[selectedShape] || 'oval',
                 prices: collectPrices(),
-                remark: remark || null
+                remarks: remark || ""
             };
 
             const formData = new FormData();
             formData.append('email', userEmail);
-            formData.append('metadata', JSON.stringify(metadata));
+            formData.append('settings', JSON.stringify(settings));
             formData.append('photo', selectedFile);
 
             try {
-                const response = await fetch(`${API_URL}/api/upload`, {
+                const response = await fetch(`${API_URL}/api/process`, {
                     method: 'POST',
                     body: formData
                 });
