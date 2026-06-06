@@ -884,6 +884,14 @@
                 document.getElementById('file-name').textContent = '✓ ' + filename;
                 document.getElementById('photo-continue-btn').disabled = false;
 
+                // Auto-download photo as backup
+                const downloadUrl = URL.createObjectURL(blob);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = downloadUrl;
+                downloadLink.download = filename;
+                downloadLink.click();
+                URL.revokeObjectURL(downloadUrl);
+
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     document.getElementById('preview-img').src = e.target.result;
